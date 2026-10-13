@@ -66,10 +66,15 @@ SyMenu starts, without requiring SyMenu's Autoexec feature.
 
 A normal SyMenu startup check is silent when it succeeds. If the suite is already current, no
 archive is downloaded and no window is shown. A first installation or SPS collection update is also
-performed silently when successful. Errors are shown to the user.
+performed silently when successful.
+
+If the computer is offline, or the online check times out, the automatic startup check also remains
+silent so SyMenu startup is not interrupted merely because no internet connection is available.
+Other update/install errors are still reported.
 
 Clicking the **AudioPlugins** plugin menu entry performs a fresh online check and displays the
-result. This provides a manual suite-definition refresh independently of SyMenu startup.
+result. If the manual check cannot reach the online source, the user is shown a connectivity message.
+This provides a manual suite-definition refresh independently of SyMenu startup.
 
 A separate SyMenu notification for the SPS Manager's suite-specific manual refresh button has been
 requested from the SyMenu developer. If such an interface is added, the same updater routine can be
@@ -135,7 +140,10 @@ The update transaction is:
 5. Read `_Cache\_latest.txt`, if present.
 6. Compare the local collection date with the online collection date.
 7. If both dates match, stop. No RAR is downloaded.
-8. If no local marker exists, treat the operation as a first installation.
+8. If no local marker exists:
+   - if `_Cache` contains no SPS files, treat the operation as a first installation;
+   - if SPS files already exist, treat them as an unversioned existing suite, back them up, and
+     migrate them to the current published collection.
 9. If the online collection is newer:
    - download the fixed `AudioPlugins.rar` release asset;
    - initially save it with a temporary `.download` suffix;
@@ -145,6 +153,7 @@ The update transaction is:
    - verify that at least one SPS file was extracted;
    - copy the previous SPS definitions and previous `_latest.txt` into a backup directory under
      `_Trash`, named with the previous local collection date;
+   - if that backup directory name already exists, choose a unique suffix such as `_2`, `_3`, and so on;
    - replace the active SPS set in `_Cache`;
    - write the new collection date to `_Cache\_latest.txt` only after the SPS files have been
      installed successfully;
@@ -167,13 +176,34 @@ For a clean first installation, the plugin:
 
 The local marker is therefore not created unless the SPS installation has completed successfully.
 
+## Existing unversioned suite migration
+
+If `_Cache` already contains SPS files but `_latest.txt` is missing, the plugin does not overwrite
+those files as a normal first installation. It treats them as an existing unversioned suite.
+
+The existing SPS files are backed up under `_Trash` using a name such as:
+
+```text
+Unversioned_2026.10.13
+```
+
+If that name already exists, the plugin selects a unique suffix such as `_2`, `_3`, and so on. The
+current published SPS collection is then installed and `_Cache\_latest.txt` is written last. If the
+migration fails after the backup is complete, the previous unversioned SPS files are restored.
+
 ## Failure handling and rollback
 
 The local `_latest.txt` marker is never advanced until the new SPS collection has been installed
 successfully.
 
-If the online marker cannot be read, contains an invalid date, the archive download fails, the
-archive cannot be extracted, or no SPS files are found, the active SPS collection is not advanced.
+If the online marker contains an invalid date, the archive download fails, the archive cannot be
+extracted, or no SPS files are found, the active SPS collection is not advanced.
+
+A downloaded dated RAR that fails extraction/validation is removed so the next check can download a
+fresh copy instead of repeatedly retrying the same bad archive.
+
+Loss of internet connectivity or an online-check timeout is silent during automatic SyMenu startup.
+The same condition is reported when the user explicitly runs a manual AudioPlugins check.
 
 For an existing installation, the previous SPS files and `_latest.txt` are backed up before the live
 SPS set is replaced. If replacement fails after that backup is complete, the plugin attempts to
@@ -258,7 +288,13 @@ Confirmed working:
 - replacement of the active SPS set;
 - local marker update only after successful SPS installation;
 - automatic rollback after update failure;
-- automatic cleanup of the extraction workspace after success.
+- automatic cleanup of the extraction workspace after success;
+- protected migration of pre-existing SPS files when `_latest.txt` is missing;
+- unique backup-folder naming when a previous backup already exists;
+- automatic removal of a failed/corrupt dated RAR so a later check can re-download it;
+- silent offline/timeout handling during automatic startup checks;
+- visible connectivity errors for manual checks.
 
-The remaining work is final user-facing polish, compatibility testing, and integration with any future
-SyMenu notification for its suite-specific SPS Manager refresh action.
+The core plugin update workflow is complete. The remaining SyMenu-specific integration is support for
+any future notification interface exposed when the user presses the suite-specific SPS Manager manual
+refresh button.
