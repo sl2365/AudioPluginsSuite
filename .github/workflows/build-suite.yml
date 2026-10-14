@@ -1,0 +1,85 @@
+name: Build AudioPlugins Suite package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Suite/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-suite-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Suite folder
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "Suite" ]; then
+            echo "ERROR: Suite folder was not found."
+            exit 1
+          fi
+
+          if [ ! -f "Suite/_latest.txt" ]; then
+            echo "ERROR: Suite/_latest.txt was not found."
+            exit 1
+          fi
+
+          latest="$(tr -d '\r\n' < "Suite/_latest.txt")"
+
+          if [[ ! "$latest" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+            echo "ERROR: Suite/_latest.txt must contain YYYY.MM.DD."
+            exit 1
+          fi
+
+          sps_count="$(find "Suite" -maxdepth 1 -type f -iname '*.sps' | wc -l)"
+
+          if [ "$sps_count" -eq 0 ]; then
+            echo "ERROR: Suite contains no SPS files."
+            exit 1
+          fi
+
+          echo "Collection: $latest"
+          echo "SPS files: $sps_count"
+
+      - name: Create Suite.zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f Suite.zip
+          (
+            cd Suite
+            zip -9 -r ../Suite.zip . -x "*.DS_Store"
+          )
+
+      - name: Create fixed suite release if needed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view suite-current >/dev/null 2>&1; then
+            gh release create suite-current \
+              --target "${GITHUB_SHA}" \
+              --title "AudioPlugins Suite Package" \
+              --notes "Automatically generated package containing the current AudioPlugins SPS suite." \
+              --prerelease
+          fi
+
+      - name: Publish Suite.zip
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release upload suite-current Suite.zip --clobber
