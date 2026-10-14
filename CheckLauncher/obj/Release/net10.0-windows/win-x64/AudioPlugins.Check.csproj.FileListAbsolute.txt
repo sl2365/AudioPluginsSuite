@@ -1,0 +1,12 @@
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\bin\Release\net10.0-windows\win-x64\AudioPlugins.Check.exe
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\bin\Release\net10.0-windows\win-x64\AudioPlugins.Check.deps.json
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\bin\Release\net10.0-windows\win-x64\AudioPlugins.Check.runtimeconfig.json
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\bin\Release\net10.0-windows\win-x64\AudioPlugins.Check.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.GeneratedMSBuildEditorConfig.editorconfig
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.AssemblyInfoInputs.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.AssemblyInfo.cs
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.csproj.CoreCompileInputs.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\refint\AudioPlugins.Check.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\AudioPlugins.Check.genruntimeconfig.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\obj\Release\net10.0-windows\win-x64\ref\AudioPlugins.Check.dll

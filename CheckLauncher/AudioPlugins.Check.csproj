@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\Version.props" />
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>AudioPlugins.Check</AssemblyName>
+    <RootNamespace>AudioPlugins.Check</RootNamespace>
+  </PropertyGroup>
+</Project>

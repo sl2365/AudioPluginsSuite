@@ -1,4 +1,4 @@
-﻿//--------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------
 // Created by		: 
 // Company			: 
 // Copyright		: 
@@ -10,9 +10,14 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.IO.Pipes;
 using System.Net.Http;
 using System.Reflection;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using SyMenu.Plugin.Resources.V01.Interfaces;
 
@@ -37,6 +42,17 @@ namespace SyMenu.Plugin.AudioPlugins
 		//ISyPluginNotificationOpenFolder // Optional interface. The plugin is notified when the user opens a folder.
 		ISyPluginNotificationStartup // Optional interface. The plugins is notified when SyMenu starts.
 	{
+		// External manual checks use a local named pipe. The pipe name is derived from
+		// the plugin folder so separate portable SyMenu installations do not collide.
+		private const string commandPipePrefix =
+			"SyMenu.AudioPlugins.Command.";
+
+		// Only one suite-definition transaction may run at a time, regardless of
+		// whether it came from startup, the SyMenu plugin menu, or the helper EXE.
+		private int suiteCheckInProgress = 0;
+
+		// The listener is started once after SyMenu's normal startup check completes.
+		private int commandListenerStarted = 0;
 
 		#region ISyPluginMain Members
 
@@ -94,7 +110,13 @@ namespace SyMenu.Plugin.AudioPlugins
 		{
 			// Metadata shown by SyMenu for this plugin.
 			Name = "AudioPlugins";
-			Version = "1.00";
+			// Keep SyMenu's displayed plugin version tied to the DLL assembly version.
+			// The assembly version is defined once in Version.props and shared with the launcher.
+			Version = Assembly
+				.GetExecutingAssembly()
+				.GetName()
+				.Version?
+				.ToString(3) ?? "Unknown";
 			Author = "sl23";
 			Description = "Keeps the AudioPlugins SPS suite definitions up to date.";
 
@@ -113,7 +135,245 @@ namespace SyMenu.Plugin.AudioPlugins
 		/// </summary>
 		public void pluginClick(object sender, System.EventArgs e)
 		{
-			checkSuiteDefinitions(true);
+			runSuiteCheck(true);
+		}
+
+		/// <summary>
+		/// Starts a suite-definition check only when another check is not already running.
+		/// Manual requests receive a short message when an existing transaction is busy.
+		/// </summary>
+		private void runSuiteCheck(bool showResult)
+		{
+			if (Interlocked.CompareExchange(
+				ref suiteCheckInProgress,
+				1,
+				0) != 0)
+			{
+				if (showResult)
+				{
+					MessageBox.Show(
+						"An AudioPlugins update check is already in progress.",
+						"AudioPlugins"
+					);
+				}
+
+				return;
+			}
+
+			performReservedSuiteCheck(showResult);
+		}
+
+		/// <summary>
+		/// Runs a check after ownership of suiteCheckInProgress has already been acquired.
+		/// The guard is always released, including when the updater reports an error.
+		/// </summary>
+		private void performReservedSuiteCheck(bool showResult)
+		{
+			try
+			{
+				checkSuiteDefinitions(showResult);
+			}
+			finally
+			{
+				Interlocked.Exchange(
+					ref suiteCheckInProgress,
+					0
+				);
+			}
+		}
+
+		/// <summary>
+		/// Creates a deterministic named-pipe name for this specific portable plugin folder.
+		/// The helper EXE uses the same calculation, so it can only signal its neighbouring plugin.
+		/// </summary>
+		private static string getCommandPipeName(
+			string pluginFolder)
+		{
+			string normalizedPluginFolder =
+				Path.GetFullPath(pluginFolder)
+					.TrimEnd(
+						Path.DirectorySeparatorChar,
+						Path.AltDirectorySeparatorChar
+					)
+					.ToUpperInvariant();
+
+			byte[] folderHash =
+				SHA256.HashData(
+					Encoding.UTF8.GetBytes(
+						normalizedPluginFolder
+					)
+				);
+
+			return commandPipePrefix +
+				Convert.ToHexString(folderHash).Substring(0, 16);
+		}
+
+		/// <summary>
+		/// Starts the local command listener once SyMenu has completed the normal startup check.
+		/// The listener is background-only and does not keep SyMenu open when the process exits.
+		/// </summary>
+		private void startCommandListener()
+		{
+			if (Interlocked.Exchange(
+				ref commandListenerStarted,
+				1) != 0)
+			{
+				return;
+			}
+
+			try
+			{
+				string pluginDllPath =
+					Assembly.GetExecutingAssembly().Location;
+
+				string pluginFolder =
+					Path.GetDirectoryName(pluginDllPath);
+
+				if (string.IsNullOrWhiteSpace(pluginFolder))
+				{
+					throw new InvalidOperationException(
+						"Unable to determine the plugin folder for the external command listener."
+					);
+				}
+
+				string pipeName =
+					getCommandPipeName(pluginFolder);
+
+				_ = Task.Run(
+					() => commandListenerLoop(pipeName)
+				);
+			}
+			catch (Exception ex)
+			{
+				Interlocked.Exchange(
+					ref commandListenerStarted,
+					0
+				);
+
+				writeCriticalLog(
+					"Starting external command listener",
+					ex
+				);
+			}
+		}
+
+		/// <summary>
+		/// Waits for CHECK commands from AudioPlugins.Check.exe.
+		/// A request reserves the same single-check guard used by the normal plugin callbacks.
+		/// </summary>
+		private async Task commandListenerLoop(
+			string pipeName)
+		{
+			while (true)
+			{
+				try
+				{
+					using (NamedPipeServerStream pipe =
+						new NamedPipeServerStream(
+							pipeName,
+							PipeDirection.InOut,
+							1,
+							PipeTransmissionMode.Byte,
+							PipeOptions.Asynchronous
+						))
+					{
+						await pipe.WaitForConnectionAsync();
+
+						using (StreamReader reader =
+							new StreamReader(
+								pipe,
+								Encoding.UTF8,
+								false,
+								1024,
+								true
+							))
+						using (StreamWriter writer =
+							new StreamWriter(
+								pipe,
+								new UTF8Encoding(false),
+								1024,
+								true
+							))
+						{
+							writer.AutoFlush = true;
+
+							string command =
+								await reader.ReadLineAsync();
+
+							if (!string.Equals(
+								command,
+								"CHECK",
+								StringComparison.Ordinal))
+							{
+								await writer.WriteLineAsync("UNKNOWN");
+								continue;
+							}
+
+							if (Interlocked.CompareExchange(
+								ref suiteCheckInProgress,
+								1,
+								0) != 0)
+							{
+								await writer.WriteLineAsync("BUSY");
+								continue;
+							}
+
+							try
+							{
+								await writer.WriteLineAsync("ACCEPTED");
+
+								queueExternalManualCheck();
+							}
+							catch
+							{
+								// The check was reserved above. If the response or dispatch fails
+								// before the updater takes over, release the guard for the next request.
+								Interlocked.Exchange(
+									ref suiteCheckInProgress,
+									0
+								);
+
+								throw;
+							}
+						}
+					}
+				}
+				catch (IOException)
+				{
+					// A launcher can disappear after connecting. That is not a plugin fault;
+					// simply return to listening for the next request.
+				}
+				catch (Exception ex)
+				{
+					writeCriticalLog(
+						"External command listener",
+						ex
+					);
+
+					await Task.Delay(1000);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Runs an accepted external request on its own STA background thread.
+		/// MessageBox requires a Windows STA thread, while the suite updater itself
+		/// does not depend on SyMenu's UI thread.
+		/// </summary>
+		private void queueExternalManualCheck()
+		{
+			Thread checkThread =
+				new Thread(
+					() => performReservedSuiteCheck(true)
+				);
+
+			checkThread.IsBackground = true;
+			checkThread.Name = "AudioPlugins Manual Check";
+			checkThread.SetApartmentState(
+				ApartmentState.STA
+			);
+
+			checkThread.Start();
 		}
 
 		/// <summary>
@@ -1331,8 +1591,13 @@ namespace SyMenu.Plugin.AudioPlugins
 		/// </summary>
 		void syMenuStartup()
 		{
-			// false keeps a successful automatic check, and ordinary offline state, silent.
-			checkSuiteDefinitions(false);
+			// Complete the normal silent startup check before exposing the external
+			// command listener. This avoids a launcher racing the initial transaction.
+			runSuiteCheck(false);
+
+			// The companion AudioPlugins.Check.exe can now request the same manual
+			// check that the SyMenu Plugins -> AudioPlugins menu item performs.
+			startCommandListener();
 		}
 	}
 }

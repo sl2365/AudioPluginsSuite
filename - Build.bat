@@ -69,6 +69,18 @@ if not exist "%PROJECT_ROOT%SyMenu.Plugin.AudioPlugins.csproj" (
     exit /b 1
 )
 
+if not exist "%PROJECT_ROOT%CheckLauncher\AudioPlugins.Check.csproj" (
+    echo [FAIL] Launcher project file was not found.
+    echo.
+    echo Expected:
+    echo %PROJECT_ROOT%CheckLauncher\AudioPlugins.Check.csproj
+    echo.
+    echo ============================================================
+    echo  BUILD FAILED
+    echo ============================================================
+    exit /b 1
+)
+
 echo Checking SDK...
 "%DOTNET_EXE%" --version
 
@@ -107,12 +119,64 @@ if exist "%PROJECT_ROOT%Build\SyMenu.Plugin.Resources.dll" (
 )
 
 echo.
+echo Building manual-check launcher...
+echo.
+
+set "LAUNCHER_PUBLISH=%PROJECT_ROOT%Build\_LauncherPublish"
+
+"%DOTNET_EXE%" publish "%PROJECT_ROOT%CheckLauncher\AudioPlugins.Check.csproj" ^
+    --configuration Release ^
+    --runtime win-x64 ^
+    --self-contained false ^
+    -p:PublishSingleFile=true ^
+    -p:DebugType=None ^
+    --output "%LAUNCHER_PUBLISH%"
+
+if errorlevel 1 (
+    echo.
+    echo ============================================================
+    echo  BUILD FAILED
+    echo ============================================================
+    exit /b 1
+)
+
+if not exist "%LAUNCHER_PUBLISH%\AudioPlugins.Check.exe" (
+    echo.
+    echo [FAIL] Manual-check launcher was not produced.
+    echo.
+    echo Expected:
+    echo %LAUNCHER_PUBLISH%\AudioPlugins.Check.exe
+    echo.
+    echo ============================================================
+    echo  BUILD FAILED
+    echo ============================================================
+    exit /b 1
+)
+
+copy /y "%LAUNCHER_PUBLISH%\AudioPlugins.Check.exe" "%PROJECT_ROOT%Build\AudioPlugins.Check.exe" >nul
+
+if errorlevel 1 (
+    echo.
+    echo [FAIL] Manual-check launcher could not be copied to Build.
+    echo.
+    echo ============================================================
+    echo  BUILD FAILED
+    echo ============================================================
+    exit /b 1
+)
+
+rmdir /s /q "%LAUNCHER_PUBLISH%"
+
+echo.
 echo ============================================================
 echo  BUILD SUCCESSFUL
 echo ============================================================
 echo.
 echo Plugin:
 echo %PROJECT_ROOT%Build\SyMenu.Plugin.AudioPlugins.dll
+echo.
+echo Manual check launcher:
+echo %PROJECT_ROOT%Build\AudioPlugins.Check.exe
 echo.
 
 exit /b 0
