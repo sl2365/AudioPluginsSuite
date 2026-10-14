@@ -2,6 +2,7 @@
 
 [![Latest](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsl2365%2FAudioPluginsSuite%2Fmain%2F_latest.txt&search=%5Cd%7B4%7D%5C.%5Cd%7B2%7D%5C.%5Cd%7B2%7D&label=Latest&style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/AudioPluginsSuite/releases/latest/download/SyMenu.Plugin.AudioPlugins.rar)
 
+[![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/latest/SyMenu.Plugin.AudioPlugins.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases)
 
 A SyMenu plugin that keeps the custom **AudioPlugins** SPS suite definitions up to date from the

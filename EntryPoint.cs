@@ -407,7 +407,7 @@ namespace SyMenu.Plugin.AudioPlugins
 		}
 
 		/// <summary>
-		/// Removes a cached RAR after archive validation fails so the next check downloads a fresh copy.
+		/// Removes a cached suite archive after validation fails so the next check downloads a fresh copy.
 		/// Failure to delete the archive is deliberately ignored because it must not hide the original error.
 		/// </summary>
 		private static void deleteArchiveForRetry(
@@ -500,9 +500,10 @@ namespace SyMenu.Plugin.AudioPlugins
 		/// </summary>
 		private void checkSuiteDefinitions(bool showResult)
 		{
-			// The small online marker is checked first. The RAR is downloaded only when needed.
+			// The published collection marker lives beside the SPS files in the repository Suite folder.
+			// The suite ZIP is downloaded only when the published date is newer than the local marker.
 			const string latestUrl =
-				"https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/_latest.txt";
+				"https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/Suite/_latest.txt";
 
 			try
 			{
@@ -667,11 +668,13 @@ namespace SyMenu.Plugin.AudioPlugins
 					status == "UPDATE AVAILABLE" ||
 					status == "UNVERSIONED EXISTING SUITE")
 				{
+					// GitHub Actions publishes a fixed Suite.zip containing only the managed
+					// AudioPlugins SPS collection from the repository Suite folder.
 					const string archiveUrl =
-						"https://github.com/sl2365/AudioPluginsSuite/releases/latest/download/AudioPlugins.rar";
+						"https://github.com/sl2365/AudioPluginsSuite/releases/download/suite-current/Suite.zip";
 
 					string archiveFileName =
-						"AudioPlugins_" + onlineVersion + ".rar";
+						"AudioPlugins_" + onlineVersion + ".zip";
 
 					archiveFile = Path.Combine(
 						trashFolder,
@@ -770,9 +773,9 @@ namespace SyMenu.Plugin.AudioPlugins
 					}
 				}
 
-				// Validate and extract the archive with the 7-Zip executable bundled by SyMenu.
+				// Validate and extract the generated Suite.zip with the 7-Zip executable bundled by SyMenu.
 				// Extraction is staged under _Trash so the active _Cache is untouched
-				// until the new SPS set has been verified.
+				// until the packaged marker and SPS files have been verified.
 				if (status == "FIRST INSTALL" ||
 					status == "UPDATE AVAILABLE" ||
 					status == "UNVERSIONED EXISTING SUITE")
@@ -884,12 +887,50 @@ namespace SyMenu.Plugin.AudioPlugins
 						}
 					}
 
-					// The archive is considered usable only when it yields at least one SPS definition.
+					// Suite.zip is built from inside the repository Suite folder, so its
+					// _latest.txt and SPS files extract directly into this temporary folder.
+					string packagedLatestFile =
+						Path.Combine(
+							extractionFolder,
+							"_latest.txt"
+						);
+
+					if (!File.Exists(packagedLatestFile))
+					{
+						deleteArchiveForRetry(
+							archiveFile
+						);
+
+						throw new InvalidDataException(
+							"The downloaded Suite.zip does not contain _latest.txt."
+						);
+					}
+
+					string packagedVersion =
+						File.ReadAllText(packagedLatestFile).Trim();
+
+					if (!string.Equals(
+						packagedVersion,
+						onlineVersion,
+						StringComparison.Ordinal))
+					{
+						deleteArchiveForRetry(
+							archiveFile
+						);
+
+						throw new InvalidDataException(
+							"The downloaded Suite.zip does not match the published collection date. " +
+							"Please try the update again shortly."
+						);
+					}
+
+					// The published suite is intentionally flat: only SPS files directly
+					// inside the package root are part of the managed AudioPlugins collection.
 					string[] extractedSpsFiles =
 						Directory.GetFiles(
 							extractionFolder,
 							"*.sps",
-							SearchOption.AllDirectories
+							SearchOption.TopDirectoryOnly
 						);
 
 					if (extractedSpsFiles.Length == 0)
@@ -899,7 +940,7 @@ namespace SyMenu.Plugin.AudioPlugins
 						);
 
 						throw new InvalidDataException(
-							"The archive extracted successfully, but no SPS files were found."
+							"The downloaded Suite.zip contains no SPS files."
 						);
 					}
 
