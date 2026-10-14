@@ -16,7 +16,9 @@ using System.Runtime.Versioning;
 using System.Windows.Forms;
 using SyMenu.Plugin.Resources.V01.Interfaces;
 
-[assembly: SupportedOSPlatform("windows6.1")]
+// SyMenu itself is Windows-only. Marking the assembly as Windows-only also tells the .NET
+// platform analyzer that Windows Forms and System.Drawing calls are intentional here.
+[assembly: SupportedOSPlatform("windows")]
 
 namespace SyMenu.Plugin.AudioPlugins
 {
@@ -90,14 +92,17 @@ namespace SyMenu.Plugin.AudioPlugins
 		/// </summary>
 		public EntryPoint()
 		{
+			// Metadata shown by SyMenu for this plugin.
 			Name = "AudioPlugins";
 			Version = "1.00";
 			Author = "sl23";
 			Description = "Keeps the AudioPlugins SPS suite definitions up to date.";
 
+			// Load the icon embedded in this assembly for the SyMenu plugin menu entry.
 			Stream iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("SyMenu.Plugin.AudioPlugins.AppIcons.pluginIcon.ico");
 			MenuIcon = new Icon(iconStream);
 
+			// Register the normal menu click and SyMenu startup callbacks.
 			PluginEventHandler = pluginClick;
 			
 			OnStartup = syMenuStartup;
@@ -111,6 +116,10 @@ namespace SyMenu.Plugin.AudioPlugins
 			checkSuiteDefinitions(true);
 		}
 
+		/// <summary>
+		/// Returns an unused backup directory name beneath _Trash.
+		/// Existing backups are never overwritten; numeric suffixes are added when required.
+		/// </summary>
 		private static string getUniqueBackupFolder(
 			string trashFolder,
 			string baseName)
@@ -137,6 +146,10 @@ namespace SyMenu.Plugin.AudioPlugins
 			return backupFolder;
 		}
 
+		/// <summary>
+		/// Removes a cached RAR after archive validation fails so the next check downloads a fresh copy.
+		/// Failure to delete the archive is deliberately ignored because it must not hide the original error.
+		/// </summary>
 		private static void deleteArchiveForRetry(
 			string archiveFile)
 		{
@@ -154,13 +167,87 @@ namespace SyMenu.Plugin.AudioPlugins
 			}
 		}
 
+		/// <summary>
+		/// Writes an error-only diagnostic log beside the plugin DLL.
+		/// Logging is best-effort and must never replace the exception that caused the failure.
+		/// Routine offline/time-out conditions are handled separately and are not logged.
+		/// </summary>
+		private void writeCriticalLog(
+			string context,
+			Exception exception)
+		{
+			try
+			{
+				string pluginDllPath =
+					Assembly.GetExecutingAssembly().Location;
+
+				string pluginFolder =
+					Path.GetDirectoryName(pluginDllPath);
+
+				// If even the plugin directory cannot be resolved there is nowhere reliable
+				// to place the requested plugin-local log, so leave the original error untouched.
+				if (string.IsNullOrWhiteSpace(pluginFolder))
+				{
+					return;
+				}
+
+				string logFile =
+					Path.Combine(
+						pluginFolder,
+						"AudioPlugins.log"
+					);
+
+				string logEntry =
+					"============================================================" +
+					Environment.NewLine +
+					DateTime.Now.ToString(
+						"yyyy-MM-dd HH:mm:ss",
+						CultureInfo.InvariantCulture
+					) +
+					Environment.NewLine +
+					"Plugin version: " +
+					Version +
+					Environment.NewLine +
+					"Context: " +
+					context +
+					Environment.NewLine +
+					"Plugin DLL: " +
+					pluginDllPath +
+					Environment.NewLine +
+					"Exception type: " +
+					exception.GetType().FullName +
+					Environment.NewLine +
+					Environment.NewLine +
+					exception +
+					Environment.NewLine +
+					Environment.NewLine;
+
+				File.AppendAllText(
+					logFile,
+					logEntry
+				);
+			}
+			catch
+			{
+				// Logging is diagnostic only. Never let a logging failure obscure
+				// the real plugin error that is already being handled.
+			}
+		}
+
+		/// <summary>
+		/// Performs the complete AudioPlugins suite-definition check/update transaction.
+		/// showResult is true for an explicit menu click and false for automatic startup.
+		/// </summary>
 		private void checkSuiteDefinitions(bool showResult)
 		{
+			// The small online marker is checked first. The RAR is downloaded only when needed.
 			const string latestUrl =
 				"https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/_latest.txt";
 
 			try
 			{
+				// Resolve the plugin's own location first, then walk up from
+				// SyMenu\Plugin\<plugin folder> to the SyMenu installation root.
 				string pluginDllPath = Assembly.GetExecutingAssembly().Location;
 				string pluginFolder = Path.GetDirectoryName(pluginDllPath);
 
@@ -183,6 +270,8 @@ namespace SyMenu.Plugin.AudioPlugins
 
 				string syMenuRoot = syMenuRootDirectory.FullName;
 
+				// Build all paths relative to the resolved SyMenu root so the plugin
+				// remains portable and does not depend on a drive letter.
 				string suiteFolder = Path.Combine(
 					syMenuRoot,
 					"ProgramFiles",
@@ -205,10 +294,14 @@ namespace SyMenu.Plugin.AudioPlugins
 					"_latest.txt"
 				);
 
+				// Directory.CreateDirectory is safe when the directory already exists,
+				// so this also handles first-run creation of the custom suite structure.
 				Directory.CreateDirectory(suiteFolder);
 				Directory.CreateDirectory(cacheFolder);
 				Directory.CreateDirectory(trashFolder);
 
+				// Read the published collection date. Startup uses a short timeout so
+				// lack of internet access does not hold SyMenu open for a long period.
 				string onlineVersion;
 
 				using (HttpClient client = new HttpClient())
@@ -238,6 +331,8 @@ namespace SyMenu.Plugin.AudioPlugins
 					);
 				}
 
+				// Read and validate the installed collection marker when one exists.
+				// A missing marker is handled separately below rather than guessed.
 				string localVersion = "(none)";
 				DateTime? localDate = null;
 
@@ -260,6 +355,9 @@ namespace SyMenu.Plugin.AudioPlugins
 					localDate = parsedLocalDate;
 				}
 
+				// Classify the current state before any files are changed.
+				// Existing SPS files without a marker are treated as an unversioned
+				// collection so they can be backed up before migration.
 				string status;
 
 				string[] unversionedSpsFiles =
@@ -297,11 +395,14 @@ namespace SyMenu.Plugin.AudioPlugins
 					status = "LOCAL NEWER";
 				}
 
+				// These status strings are retained for diagnostics/internal flow even
+				// though normal user-facing messages are intentionally concise.
 				string archiveStatus = "Not required.";
 				string extractionStatus = "Not required.";
 				string installationStatus = "Not required.";
 				string archiveFile = string.Empty;
 
+				// Only fetch the suite archive when an install, update, or migration is required.
 				if (status == "FIRST INSTALL" ||
 					status == "UPDATE AVAILABLE" ||
 					status == "UNVERSIONED EXISTING SUITE")
@@ -317,6 +418,8 @@ namespace SyMenu.Plugin.AudioPlugins
 						archiveFileName
 					);
 
+					// Download to a temporary filename first. A partial download is never
+					// allowed to masquerade as a valid cached release archive.
 					string temporaryArchiveFile =
 						archiveFile + ".download";
 
@@ -407,6 +510,9 @@ namespace SyMenu.Plugin.AudioPlugins
 					}
 				}
 
+				// Validate and extract the archive with the 7-Zip executable bundled by SyMenu.
+				// Extraction is staged under _Trash so the active _Cache is untouched
+				// until the new SPS set has been verified.
 				if (status == "FIRST INSTALL" ||
 					status == "UPDATE AVAILABLE" ||
 					status == "UNVERSIONED EXISTING SUITE")
@@ -434,6 +540,8 @@ namespace SyMenu.Plugin.AudioPlugins
 						);
 					}
 
+					// Recreate the temporary extraction workspace on every run. If a prior
+					// failed attempt left it behind, stale content is discarded first.
 					string extractionFolder = Path.Combine(
 						trashFolder,
 						"_ExtractWork"
@@ -466,6 +574,7 @@ namespace SyMenu.Plugin.AudioPlugins
 					);
 					startInfo.ArgumentList.Add(archiveFile);
 
+					// Capture 7-Zip output so a failure can report the actual extraction error.
 					using (Process process = new Process())
 					{
 						process.StartInfo = startInfo;
@@ -515,6 +624,7 @@ namespace SyMenu.Plugin.AudioPlugins
 						}
 					}
 
+					// The archive is considered usable only when it yields at least one SPS definition.
 					string[] extractedSpsFiles =
 						Directory.GetFiles(
 							extractionFolder,
@@ -539,6 +649,8 @@ namespace SyMenu.Plugin.AudioPlugins
 						"SPS files found: " +
 						extractedSpsFiles.Length;
 
+					// FIRST INSTALL: _Cache must not already contain SPS definitions.
+					// Copy the verified files, then commit _latest.txt last.
 					if (status == "FIRST INSTALL")
 					{
 						string[] existingSpsFiles =
@@ -645,6 +757,8 @@ namespace SyMenu.Plugin.AudioPlugins
 							throw;
 						}
 					}
+					// UNVERSIONED MIGRATION: preserve the unknown existing collection first,
+					// then replace it with the published set. Roll back from that backup on failure.
 					else if (status == "UNVERSIONED EXISTING SUITE")
 					{
 						string[] existingSpsFiles =
@@ -680,6 +794,7 @@ namespace SyMenu.Plugin.AudioPlugins
 
 						try
 						{
+							// Complete the backup before deleting anything from the active cache.
 							Directory.CreateDirectory(backupFolder);
 
 							foreach (string existingSpsFile in existingSpsFiles)
@@ -792,6 +907,7 @@ namespace SyMenu.Plugin.AudioPlugins
 								throw;
 							}
 
+							// Backup completed, so restore the previous live collection before reporting failure.
 							try
 							{
 								string[] currentSpsFiles =
@@ -856,6 +972,8 @@ namespace SyMenu.Plugin.AudioPlugins
 							);
 						}
 					}
+					// NORMAL UPDATE: back up the currently versioned collection and marker,
+					// replace the SPS set as a whole, and advance the marker only after success.
 					else if (status == "UPDATE AVAILABLE")
 					{
 						if (!localDate.HasValue ||
@@ -898,6 +1016,7 @@ namespace SyMenu.Plugin.AudioPlugins
 
 						try
 						{
+							// Complete the backup before deleting anything from the active cache.
 							Directory.CreateDirectory(backupFolder);
 
 							foreach (string existingSpsFile in existingSpsFiles)
@@ -1020,6 +1139,7 @@ namespace SyMenu.Plugin.AudioPlugins
 								throw;
 							}
 
+							// Backup completed, so restore the previous live collection before reporting failure.
 							try
 							{
 								string[] currentSpsFiles =
@@ -1086,6 +1206,7 @@ namespace SyMenu.Plugin.AudioPlugins
 						}
 					}
 
+					// Successful operations no longer need the temporary extraction workspace.
 					if (Directory.Exists(extractionFolder))
 					{
 						Directory.Delete(
@@ -1095,6 +1216,8 @@ namespace SyMenu.Plugin.AudioPlugins
 					}
 				}
 
+				// Automatic startup checks are silent on success. Only an explicit
+				// plugin-menu check displays the final status to the user.
 				if (showResult)
 				{
 					string resultMessage;
@@ -1162,6 +1285,8 @@ namespace SyMenu.Plugin.AudioPlugins
 			}
 			catch (Exception ex)
 			{
+				// No internet connection or a network timeout is an expected transient state.
+				// Keep automatic startup silent, but explain the problem after a manual check.
 				bool networkFailure =
 					ex is System.Threading.Tasks.TaskCanceledException ||
 					(ex is HttpRequestException httpException &&
@@ -1183,6 +1308,15 @@ namespace SyMenu.Plugin.AudioPlugins
 					return;
 				}
 
+				// All other failures are unexpected or potentially persistent. Record full
+				// diagnostic detail beside the plugin DLL before showing the concise error.
+				writeCriticalLog(
+					showResult
+						? "Manual suite-definition check"
+						: "Automatic startup suite-definition check",
+					ex
+				);
+
 				MessageBox.Show(
 					"AudioPlugins update check failed." +
 					Environment.NewLine + Environment.NewLine +
@@ -1197,6 +1331,7 @@ namespace SyMenu.Plugin.AudioPlugins
 		/// </summary>
 		void syMenuStartup()
 		{
+			// false keeps a successful automatic check, and ordinary offline state, silent.
 			checkSuiteDefinitions(false);
 		}
 	}

@@ -76,9 +76,10 @@ Clicking the **AudioPlugins** plugin menu entry performs a fresh online check an
 result. If the manual check cannot reach the online source, the user is shown a connectivity message.
 This provides a manual suite-definition refresh independently of SyMenu startup.
 
-A separate SyMenu notification for the SPS Manager's suite-specific manual refresh button has been
-requested from the SyMenu developer. If such an interface is added, the same updater routine can be
-called immediately before SyMenu refreshes the AudioPlugins suite.
+The plugin does not currently hook the SPS Manager's suite-specific manual refresh button. The exact
+behaviour of that button for custom suites, and whether SyMenu can expose a suitable plugin extension
+point, is still being clarified with the SyMenu developer. Until then, the **AudioPlugins** plugin menu
+entry is the supported manual online refresh for this custom suite.
 
 ## Suite location
 
@@ -212,6 +213,27 @@ restore the previous SPS files and marker automatically.
 If both the update and the automatic rollback fail, the plugin reports both errors and leaves the
 dated backup directory available for manual recovery.
 
+## Critical error logging
+
+The plugin keeps routine successful checks silent and does not create a general activity log.
+
+Unexpected or potentially persistent failures are appended to:
+
+```text
+SyMenu\Plugin\SyMenu.Plugin.AudioPlugins\AudioPlugins.log
+```
+
+Each entry includes the timestamp, plugin version, whether the failure occurred during an automatic
+startup check or a manual check, the plugin DLL path, the exception type, and the full exception
+details/stack trace.
+
+Ordinary loss of internet connectivity or an online-check timeout is not logged as a critical error.
+Those conditions remain silent during automatic SyMenu startup and produce the normal connectivity
+message only when the user explicitly runs a manual AudioPlugins check.
+
+Logging is best-effort. A failure to write the diagnostic log never replaces or hides the original
+plugin error.
+
 ## RAR handling
 
 The published suite collection is intentionally distributed as `AudioPlugins.rar`.
@@ -246,6 +268,10 @@ The plugin targets:
 ```text
 net10.0-windows
 ```
+
+The assembly is explicitly marked as Windows-only with
+`[assembly: SupportedOSPlatform("windows")]`, matching SyMenu's platform requirement and preventing
+spurious platform-analyzer warnings for Windows Forms and `System.Drawing` APIs.
 
 Development uses a portable .NET 10 SDK rather than requiring a system-wide SDK installation.
 
@@ -293,8 +319,8 @@ Confirmed working:
 - unique backup-folder naming when a previous backup already exists;
 - automatic removal of a failed/corrupt dated RAR so a later check can re-download it;
 - silent offline/timeout handling during automatic startup checks;
-- visible connectivity errors for manual checks.
+- visible connectivity errors for manual checks;
+- error-only critical diagnostic logging beside the plugin DLL.
 
-The core plugin update workflow is complete. The remaining SyMenu-specific integration is support for
-any future notification interface exposed when the user presses the suite-specific SPS Manager manual
-refresh button.
+The core plugin update workflow is complete. Integration with the suite-specific SPS Manager manual
+refresh button is not currently implemented and remains pending clarification from the SyMenu developer.
