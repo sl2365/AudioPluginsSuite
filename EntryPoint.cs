@@ -47,6 +47,13 @@ namespace SyMenu.Plugin.AudioPlugins
 		private const string commandPipePrefix =
 			"SyMenu.AudioPlugins.Command.";
 
+		// Fixed online locations for the published collection marker and generated suite package.
+		private const string latestUrl =
+			"https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/Suite/_latest.txt";
+
+		private const string archiveUrl =
+			"https://github.com/sl2365/AudioPluginsSuite/releases/download/suite-current/Suite.zip";
+
 		// Only one suite-definition transaction may run at a time, regardless of
 		// whether it came from startup, the SyMenu plugin menu, or the helper EXE.
 		private int suiteCheckInProgress = 0;
@@ -495,1092 +502,1127 @@ namespace SyMenu.Plugin.AudioPlugins
 		}
 
 		/// <summary>
-		/// Performs the complete AudioPlugins suite-definition check/update transaction.
-		/// showResult is true for an explicit menu click and false for automatic startup.
+		/// Resolves the portable SyMenu paths used by the updater and ensures the suite folders exist.
 		/// </summary>
-		private void checkSuiteDefinitions(bool showResult)
+		private static void resolveSuitePaths(
+			out string syMenuRoot,
+			out string cacheFolder,
+			out string trashFolder,
+			out string localLatestFile)
 		{
-			// The published collection marker lives beside the SPS files in the repository Suite folder.
-			// The suite ZIP is downloaded only when the published date is newer than the local marker.
-			const string latestUrl =
-				"https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/Suite/_latest.txt";
+			string pluginDllPath = Assembly.GetExecutingAssembly().Location;
+			string pluginFolder = Path.GetDirectoryName(pluginDllPath);
+
+			if (string.IsNullOrWhiteSpace(pluginFolder))
+			{
+				throw new InvalidOperationException(
+					"Unable to determine the plugin folder."
+				);
+			}
+
+			DirectoryInfo pluginDirectory = new DirectoryInfo(pluginFolder);
+			DirectoryInfo syMenuRootDirectory = pluginDirectory.Parent?.Parent;
+
+			if (syMenuRootDirectory == null)
+			{
+				throw new InvalidOperationException(
+					"Unable to determine the SyMenu root folder."
+				);
+			}
+
+			syMenuRoot = syMenuRootDirectory.FullName;
+
+			string suiteFolder = Path.Combine(
+				syMenuRoot,
+				"ProgramFiles",
+				"SPSSuite",
+				"AudioPlugins"
+			);
+
+			cacheFolder = Path.Combine(
+				suiteFolder,
+				"_Cache"
+			);
+
+			trashFolder = Path.Combine(
+				suiteFolder,
+				"_Trash"
+			);
+
+			localLatestFile = Path.Combine(
+				cacheFolder,
+				"_latest.txt"
+			);
+
+			Directory.CreateDirectory(suiteFolder);
+			Directory.CreateDirectory(cacheFolder);
+			Directory.CreateDirectory(trashFolder);
+		}
+
+		/// <summary>
+		/// Reads and validates the published collection date from the repository.
+		/// </summary>
+		private string getOnlineVersion(
+			out DateTime onlineDate)
+		{
+			string onlineVersion;
+
+			using (HttpClient client = new HttpClient())
+			{
+				client.Timeout = TimeSpan.FromSeconds(10);
+
+				client.DefaultRequestHeaders.UserAgent.ParseAdd(
+					"SyMenu-AudioPlugins/" + Version
+				);
+
+				onlineVersion = client
+					.GetStringAsync(latestUrl)
+					.GetAwaiter()
+					.GetResult()
+					.Trim();
+			}
+
+			if (!DateTime.TryParseExact(
+				onlineVersion,
+				"yyyy.MM.dd",
+				CultureInfo.InvariantCulture,
+				DateTimeStyles.None,
+				out onlineDate))
+			{
+				throw new InvalidDataException(
+					"Online _latest.txt does not contain a valid YYYY.MM.DD date."
+				);
+			}
+
+			return onlineVersion;
+		}
+
+		/// <summary>
+		/// Reads the installed marker and classifies the current suite state before anything is changed.
+		/// </summary>
+		private static string getSuiteStatus(
+			string cacheFolder,
+			string localLatestFile,
+			DateTime onlineDate,
+			out string localVersion,
+			out DateTime? localDate)
+		{
+			localVersion = "(none)";
+			localDate = null;
+
+			if (File.Exists(localLatestFile))
+			{
+				localVersion = File.ReadAllText(localLatestFile).Trim();
+
+				if (!DateTime.TryParseExact(
+					localVersion,
+					"yyyy.MM.dd",
+					CultureInfo.InvariantCulture,
+					DateTimeStyles.None,
+					out DateTime parsedLocalDate))
+				{
+					throw new InvalidDataException(
+						"Local _latest.txt does not contain a valid YYYY.MM.DD date."
+					);
+				}
+
+				localDate = parsedLocalDate;
+			}
+
+			if (!localDate.HasValue)
+			{
+				string[] unversionedSpsFiles =
+					Directory.GetFiles(
+						cacheFolder,
+						"*.sps",
+						SearchOption.TopDirectoryOnly
+					);
+
+				return unversionedSpsFiles.Length != 0
+					? "UNVERSIONED EXISTING SUITE"
+					: "FIRST INSTALL";
+			}
+
+			if (onlineDate > localDate.Value)
+			{
+				return "UPDATE AVAILABLE";
+			}
+
+			if (onlineDate == localDate.Value)
+			{
+				return "UP TO DATE";
+			}
+
+			return "LOCAL NEWER";
+		}
+
+		/// <summary>
+		/// Returns true when the current state requires the published Suite.zip package.
+		/// </summary>
+		private static bool requiresSuitePackage(
+			string status)
+		{
+			return status == "FIRST INSTALL" ||
+				status == "UPDATE AVAILABLE" ||
+				status == "UNVERSIONED EXISTING SUITE";
+		}
+
+		/// <summary>
+		/// Downloads the current Suite.zip when it is not already cached for this collection date.
+		/// </summary>
+		private string downloadSuiteArchive(
+			string trashFolder,
+			string onlineVersion)
+		{
+			string archiveFileName =
+				"AudioPlugins_" + onlineVersion + ".zip";
+
+			string archiveFile = Path.Combine(
+				trashFolder,
+				archiveFileName
+			);
+
+			if (File.Exists(archiveFile))
+			{
+				return archiveFile;
+			}
+
+			string temporaryArchiveFile =
+				archiveFile + ".download";
+
+			if (File.Exists(temporaryArchiveFile))
+			{
+				File.Delete(temporaryArchiveFile);
+			}
 
 			try
 			{
-				// Resolve the plugin's own location first, then walk up from
-				// SyMenu\Plugin\<plugin folder> to the SyMenu installation root.
-				string pluginDllPath = Assembly.GetExecutingAssembly().Location;
-				string pluginFolder = Path.GetDirectoryName(pluginDllPath);
-
-				if (string.IsNullOrWhiteSpace(pluginFolder))
-				{
-					throw new InvalidOperationException(
-						"Unable to determine the plugin folder."
-					);
-				}
-
-				DirectoryInfo pluginDirectory = new DirectoryInfo(pluginFolder);
-				DirectoryInfo syMenuRootDirectory = pluginDirectory.Parent?.Parent;
-
-				if (syMenuRootDirectory == null)
-				{
-					throw new InvalidOperationException(
-						"Unable to determine the SyMenu root folder."
-					);
-				}
-
-				string syMenuRoot = syMenuRootDirectory.FullName;
-
-				// Build all paths relative to the resolved SyMenu root so the plugin
-				// remains portable and does not depend on a drive letter.
-				string suiteFolder = Path.Combine(
-					syMenuRoot,
-					"ProgramFiles",
-					"SPSSuite",
-					"AudioPlugins"
-				);
-
-				string cacheFolder = Path.Combine(
-					suiteFolder,
-					"_Cache"
-				);
-
-				string trashFolder = Path.Combine(
-					suiteFolder,
-					"_Trash"
-				);
-
-				string localLatestFile = Path.Combine(
-					cacheFolder,
-					"_latest.txt"
-				);
-
-				// Directory.CreateDirectory is safe when the directory already exists,
-				// so this also handles first-run creation of the custom suite structure.
-				Directory.CreateDirectory(suiteFolder);
-				Directory.CreateDirectory(cacheFolder);
-				Directory.CreateDirectory(trashFolder);
-
-				// Read the published collection date. Startup uses a short timeout so
-				// lack of internet access does not hold SyMenu open for a long period.
-				string onlineVersion;
-
 				using (HttpClient client = new HttpClient())
 				{
-					client.Timeout = TimeSpan.FromSeconds(10);
+					client.Timeout = TimeSpan.FromMinutes(5);
 
 					client.DefaultRequestHeaders.UserAgent.ParseAdd(
 						"SyMenu-AudioPlugins/" + Version
 					);
 
-					onlineVersion = client
-						.GetStringAsync(latestUrl)
+					using (HttpResponseMessage response = client
+						.GetAsync(
+							archiveUrl,
+							HttpCompletionOption.ResponseHeadersRead
+						)
 						.GetAwaiter()
-						.GetResult()
-						.Trim();
+						.GetResult())
+					{
+						response.EnsureSuccessStatusCode();
+
+						using (Stream source = response.Content
+							.ReadAsStreamAsync()
+							.GetAwaiter()
+							.GetResult())
+						using (FileStream destination = new FileStream(
+							temporaryArchiveFile,
+							FileMode.CreateNew,
+							FileAccess.Write,
+							FileShare.None))
+						{
+							source.CopyTo(destination);
+						}
+					}
 				}
 
-				if (!DateTime.TryParseExact(
-					onlineVersion,
-					"yyyy.MM.dd",
-					CultureInfo.InvariantCulture,
-					DateTimeStyles.None,
-					out DateTime onlineDate))
+				FileInfo downloadedFile =
+					new FileInfo(temporaryArchiveFile);
+
+				if (!downloadedFile.Exists ||
+					downloadedFile.Length == 0)
 				{
 					throw new InvalidDataException(
-						"Online _latest.txt does not contain a valid YYYY.MM.DD date."
+						"Downloaded AudioPlugins archive is empty."
 					);
 				}
 
-				// Read and validate the installed collection marker when one exists.
-				// A missing marker is handled separately below rather than guessed.
-				string localVersion = "(none)";
-				DateTime? localDate = null;
-
-				if (File.Exists(localLatestFile))
+				File.Move(
+					temporaryArchiveFile,
+					archiveFile
+				);
+			}
+			catch
+			{
+				if (File.Exists(temporaryArchiveFile))
 				{
-					localVersion = File.ReadAllText(localLatestFile).Trim();
+					File.Delete(temporaryArchiveFile);
+				}
 
-					if (!DateTime.TryParseExact(
-						localVersion,
-						"yyyy.MM.dd",
-						CultureInfo.InvariantCulture,
-						DateTimeStyles.None,
-						out DateTime parsedLocalDate))
+				throw;
+			}
+
+			return archiveFile;
+		}
+
+		/// <summary>
+		/// Extracts Suite.zip into the temporary workspace and validates its marker and SPS contents.
+		/// </summary>
+		private static string[] extractAndValidateSuiteArchive(
+			string syMenuRoot,
+			string trashFolder,
+			string archiveFile,
+			string onlineVersion,
+			out string extractionFolder)
+		{
+			string sevenZipExe = Path.Combine(
+				syMenuRoot,
+				"Lib",
+				"7z.exe"
+			);
+
+			if (!File.Exists(sevenZipExe))
+			{
+				throw new FileNotFoundException(
+					"SyMenu 7z.exe was not found.",
+					sevenZipExe
+				);
+			}
+
+			if (string.IsNullOrWhiteSpace(archiveFile) ||
+				!File.Exists(archiveFile))
+			{
+				throw new FileNotFoundException(
+					"The downloaded AudioPlugins archive was not found.",
+					archiveFile
+				);
+			}
+
+			extractionFolder = Path.Combine(
+				trashFolder,
+				"_ExtractWork"
+			);
+
+			if (Directory.Exists(extractionFolder))
+			{
+				Directory.Delete(
+					extractionFolder,
+					true
+				);
+			}
+
+			Directory.CreateDirectory(extractionFolder);
+
+			ProcessStartInfo startInfo =
+				new ProcessStartInfo();
+
+			startInfo.FileName = sevenZipExe;
+			startInfo.UseShellExecute = false;
+			startInfo.CreateNoWindow = true;
+			startInfo.RedirectStandardOutput = true;
+			startInfo.RedirectStandardError = true;
+
+			startInfo.ArgumentList.Add("x");
+			startInfo.ArgumentList.Add("-y");
+			startInfo.ArgumentList.Add("-bd");
+			startInfo.ArgumentList.Add(
+				"-o" + extractionFolder
+			);
+			startInfo.ArgumentList.Add(archiveFile);
+
+			using (Process process = new Process())
+			{
+				process.StartInfo = startInfo;
+
+				if (!process.Start())
+				{
+					throw new InvalidOperationException(
+						"Unable to start SyMenu 7z.exe."
+					);
+				}
+
+				var outputTask =
+					process.StandardOutput.ReadToEndAsync();
+
+				var errorTask =
+					process.StandardError.ReadToEndAsync();
+
+				process.WaitForExit();
+
+				// Drain both redirected streams before checking the exit code.
+				outputTask.GetAwaiter().GetResult();
+
+				string processError =
+					errorTask.GetAwaiter().GetResult();
+
+				if (process.ExitCode != 0)
+				{
+					deleteArchiveForRetry(
+						archiveFile
+					);
+
+					string errorMessage =
+						"7-Zip extraction failed with exit code " +
+						process.ExitCode + ".";
+
+					if (!string.IsNullOrWhiteSpace(processError))
 					{
-						throw new InvalidDataException(
-							"Local _latest.txt does not contain a valid YYYY.MM.DD date."
+						errorMessage +=
+							Environment.NewLine +
+							Environment.NewLine +
+							processError.Trim();
+					}
+
+					throw new InvalidDataException(
+						errorMessage
+					);
+				}
+			}
+
+			string packagedLatestFile = Path.Combine(
+				extractionFolder,
+				"_latest.txt"
+			);
+
+			if (!File.Exists(packagedLatestFile))
+			{
+				deleteArchiveForRetry(
+					archiveFile
+				);
+
+				throw new InvalidDataException(
+					"The downloaded Suite.zip does not contain _latest.txt."
+				);
+			}
+
+			string packagedVersion =
+				File.ReadAllText(packagedLatestFile).Trim();
+
+			if (!string.Equals(
+				packagedVersion,
+				onlineVersion,
+				StringComparison.Ordinal))
+			{
+				deleteArchiveForRetry(
+					archiveFile
+				);
+
+				throw new InvalidDataException(
+					"The downloaded Suite.zip does not match the published collection date. " +
+					"Please try the update again shortly."
+				);
+			}
+
+			string[] extractedSpsFiles =
+				Directory.GetFiles(
+					extractionFolder,
+					"*.sps",
+					SearchOption.TopDirectoryOnly
+				);
+
+			if (extractedSpsFiles.Length == 0)
+			{
+				deleteArchiveForRetry(
+					archiveFile
+				);
+
+				throw new InvalidDataException(
+					"The downloaded Suite.zip contains no SPS files."
+				);
+			}
+
+			return extractedSpsFiles;
+		}
+
+		/// <summary>
+		/// Performs a clean first installation of the verified SPS collection.
+		/// </summary>
+		private static void installFirstCollection(
+			string cacheFolder,
+			string localLatestFile,
+			string[] extractedSpsFiles,
+			string onlineVersion)
+		{
+			string[] existingSpsFiles =
+				Directory.GetFiles(
+					cacheFolder,
+					"*.sps",
+					SearchOption.AllDirectories
+				);
+
+			if (existingSpsFiles.Length != 0)
+			{
+				throw new InvalidOperationException(
+					"First install was stopped because _Cache already contains SPS files. " +
+					"No existing SPS files were overwritten."
+				);
+			}
+
+			List<string> installedFiles =
+				new List<string>();
+
+			string temporaryLatestFile =
+				localLatestFile + ".new";
+
+			try
+			{
+				if (File.Exists(temporaryLatestFile))
+				{
+					File.Delete(temporaryLatestFile);
+				}
+
+				foreach (string sourceSpsFile in extractedSpsFiles)
+				{
+					string destinationSpsFile =
+						Path.Combine(
+							cacheFolder,
+							Path.GetFileName(sourceSpsFile)
+						);
+
+					if (File.Exists(destinationSpsFile))
+					{
+						throw new IOException(
+							"An SPS file with the same name already exists in _Cache: " +
+							Path.GetFileName(sourceSpsFile)
 						);
 					}
 
-					localDate = parsedLocalDate;
+					File.Copy(
+						sourceSpsFile,
+						destinationSpsFile,
+						false
+					);
+
+					installedFiles.Add(destinationSpsFile);
 				}
 
-				// Classify the current state before any files are changed.
-				// Existing SPS files without a marker are treated as an unversioned
-				// collection so they can be backed up before migration.
-				string status;
+				File.WriteAllText(
+					temporaryLatestFile,
+					onlineVersion + Environment.NewLine
+				);
 
-				string[] unversionedSpsFiles =
-					Array.Empty<string>();
-
-				if (!localDate.HasValue)
+				File.Move(
+					temporaryLatestFile,
+					localLatestFile
+				);
+			}
+			catch
+			{
+				if (File.Exists(temporaryLatestFile))
 				{
-					unversionedSpsFiles =
+					try
+					{
+						File.Delete(temporaryLatestFile);
+					}
+					catch
+					{
+					}
+				}
+
+				foreach (string installedFile in installedFiles)
+				{
+					try
+					{
+						if (File.Exists(installedFile))
+						{
+							File.Delete(installedFile);
+						}
+					}
+					catch
+					{
+					}
+				}
+
+				throw;
+			}
+		}
+
+		/// <summary>
+		/// Backs up an existing unversioned SPS set, installs the verified collection, and rolls back on failure.
+		/// </summary>
+		private static void migrateUnversionedCollection(
+			string cacheFolder,
+			string trashFolder,
+			string localLatestFile,
+			string[] extractedSpsFiles,
+			string onlineVersion)
+		{
+			string[] existingSpsFiles =
+				Directory.GetFiles(
+					cacheFolder,
+					"*.sps",
+					SearchOption.TopDirectoryOnly
+				);
+
+			if (existingSpsFiles.Length == 0)
+			{
+				throw new InvalidOperationException(
+					"Unversioned suite migration was requested, but no existing SPS files were found."
+				);
+			}
+
+			string backupFolder =
+				getUniqueBackupFolder(
+					trashFolder,
+					"Unversioned_" + onlineVersion
+				);
+
+			List<string> backupSpsFiles =
+				new List<string>();
+
+			string temporaryLatestFile =
+				localLatestFile + ".new";
+
+			bool backupComplete = false;
+
+			try
+			{
+				Directory.CreateDirectory(backupFolder);
+
+				foreach (string existingSpsFile in existingSpsFiles)
+				{
+					string backupSpsFile =
+						Path.Combine(
+							backupFolder,
+							Path.GetFileName(existingSpsFile)
+						);
+
+					File.Copy(
+						existingSpsFile,
+						backupSpsFile,
+						false
+					);
+
+					backupSpsFiles.Add(backupSpsFile);
+				}
+
+				backupComplete = true;
+
+				foreach (string existingSpsFile in existingSpsFiles)
+				{
+					File.Delete(existingSpsFile);
+				}
+
+				foreach (string sourceSpsFile in extractedSpsFiles)
+				{
+					string destinationSpsFile =
+						Path.Combine(
+							cacheFolder,
+							Path.GetFileName(sourceSpsFile)
+						);
+
+					if (File.Exists(destinationSpsFile))
+					{
+						throw new IOException(
+							"An SPS file with the same name already exists in _Cache: " +
+							Path.GetFileName(sourceSpsFile)
+						);
+					}
+
+					File.Copy(
+						sourceSpsFile,
+						destinationSpsFile,
+						false
+					);
+				}
+
+				if (File.Exists(temporaryLatestFile))
+				{
+					File.Delete(temporaryLatestFile);
+				}
+
+				File.WriteAllText(
+					temporaryLatestFile,
+					onlineVersion + Environment.NewLine
+				);
+
+				File.Move(
+					temporaryLatestFile,
+					localLatestFile
+				);
+			}
+			catch (Exception migrationException)
+			{
+				if (File.Exists(temporaryLatestFile))
+				{
+					try
+					{
+						File.Delete(temporaryLatestFile);
+					}
+					catch
+					{
+					}
+				}
+
+				if (!backupComplete)
+				{
+					try
+					{
+						if (Directory.Exists(backupFolder))
+						{
+							Directory.Delete(
+								backupFolder,
+								true
+							);
+						}
+					}
+					catch
+					{
+					}
+
+					throw;
+				}
+
+				try
+				{
+					string[] currentSpsFiles =
 						Directory.GetFiles(
 							cacheFolder,
 							"*.sps",
 							SearchOption.TopDirectoryOnly
 						);
-				}
 
-				if (!localDate.HasValue &&
-					unversionedSpsFiles.Length != 0)
-				{
-					status = "UNVERSIONED EXISTING SUITE";
-				}
-				else if (!localDate.HasValue)
-				{
-					status = "FIRST INSTALL";
-				}
-				else if (onlineDate > localDate.Value)
-				{
-					status = "UPDATE AVAILABLE";
-				}
-				else if (onlineDate == localDate.Value)
-				{
-					status = "UP TO DATE";
-				}
-				else
-				{
-					status = "LOCAL NEWER";
-				}
-
-				// These status strings are retained for diagnostics/internal flow even
-				// though normal user-facing messages are intentionally concise.
-				string archiveStatus = "Not required.";
-				string extractionStatus = "Not required.";
-				string installationStatus = "Not required.";
-				string archiveFile = string.Empty;
-
-				// Only fetch the suite archive when an install, update, or migration is required.
-				if (status == "FIRST INSTALL" ||
-					status == "UPDATE AVAILABLE" ||
-					status == "UNVERSIONED EXISTING SUITE")
-				{
-					// GitHub Actions publishes a fixed Suite.zip containing only the managed
-					// AudioPlugins SPS collection from the repository Suite folder.
-					const string archiveUrl =
-						"https://github.com/sl2365/AudioPluginsSuite/releases/download/suite-current/Suite.zip";
-
-					string archiveFileName =
-						"AudioPlugins_" + onlineVersion + ".zip";
-
-					archiveFile = Path.Combine(
-						trashFolder,
-						archiveFileName
-					);
-
-					// Download to a temporary filename first. A partial download is never
-					// allowed to masquerade as a valid cached release archive.
-					string temporaryArchiveFile =
-						archiveFile + ".download";
-
-					if (File.Exists(archiveFile))
+					foreach (string currentSpsFile in currentSpsFiles)
 					{
-						archiveStatus =
-							"Already downloaded:" +
-							Environment.NewLine +
-							archiveFile;
+						File.Delete(currentSpsFile);
 					}
-					else
+
+					foreach (string backupSpsFile in backupSpsFiles)
 					{
-						if (File.Exists(temporaryArchiveFile))
-						{
-							File.Delete(temporaryArchiveFile);
-						}
-
-						try
-						{
-							using (HttpClient client = new HttpClient())
-							{
-								client.Timeout = TimeSpan.FromMinutes(5);
-
-								client.DefaultRequestHeaders.UserAgent.ParseAdd(
-									"SyMenu-AudioPlugins/" + Version
-								);
-
-								using (HttpResponseMessage response = client
-									.GetAsync(
-										archiveUrl,
-										HttpCompletionOption.ResponseHeadersRead
-									)
-									.GetAwaiter()
-									.GetResult())
-								{
-									response.EnsureSuccessStatusCode();
-
-									using (Stream source = response.Content
-										.ReadAsStreamAsync()
-										.GetAwaiter()
-										.GetResult())
-									using (FileStream destination = new FileStream(
-										temporaryArchiveFile,
-										FileMode.CreateNew,
-										FileAccess.Write,
-										FileShare.None))
-									{
-										source.CopyTo(destination);
-									}
-								}
-							}
-
-							FileInfo downloadedFile =
-								new FileInfo(temporaryArchiveFile);
-
-							if (!downloadedFile.Exists ||
-								downloadedFile.Length == 0)
-							{
-								throw new InvalidDataException(
-									"Downloaded AudioPlugins archive is empty."
-								);
-							}
-
-							File.Move(
-								temporaryArchiveFile,
-								archiveFile
+						string restoredSpsFile =
+							Path.Combine(
+								cacheFolder,
+								Path.GetFileName(backupSpsFile)
 							);
 
-							archiveStatus =
-								"Downloaded successfully:" +
-								Environment.NewLine +
-								archiveFile +
-								Environment.NewLine +
-								Environment.NewLine +
-								"Size: " +
-								downloadedFile.Length.ToString("N0") +
-								" bytes";
-						}
-						catch
-						{
-							if (File.Exists(temporaryArchiveFile))
-							{
-								File.Delete(temporaryArchiveFile);
-							}
-
-							throw;
-						}
-					}
-				}
-
-				// Validate and extract the generated Suite.zip with the 7-Zip executable bundled by SyMenu.
-				// Extraction is staged under _Trash so the active _Cache is untouched
-				// until the packaged marker and SPS files have been verified.
-				if (status == "FIRST INSTALL" ||
-					status == "UPDATE AVAILABLE" ||
-					status == "UNVERSIONED EXISTING SUITE")
-				{
-					string sevenZipExe = Path.Combine(
-						syMenuRoot,
-						"Lib",
-						"7z.exe"
-					);
-
-					if (!File.Exists(sevenZipExe))
-					{
-						throw new FileNotFoundException(
-							"SyMenu 7z.exe was not found.",
-							sevenZipExe
-						);
-					}
-
-					if (string.IsNullOrWhiteSpace(archiveFile) ||
-						!File.Exists(archiveFile))
-					{
-						throw new FileNotFoundException(
-							"The downloaded AudioPlugins archive was not found.",
-							archiveFile
-						);
-					}
-
-					// Recreate the temporary extraction workspace on every run. If a prior
-					// failed attempt left it behind, stale content is discarded first.
-					string extractionFolder = Path.Combine(
-						trashFolder,
-						"_ExtractWork"
-					);
-
-					if (Directory.Exists(extractionFolder))
-					{
-						Directory.Delete(
-							extractionFolder,
+						File.Copy(
+							backupSpsFile,
+							restoredSpsFile,
 							true
 						);
 					}
 
-					Directory.CreateDirectory(extractionFolder);
-
-					ProcessStartInfo startInfo =
-						new ProcessStartInfo();
-
-					startInfo.FileName = sevenZipExe;
-					startInfo.UseShellExecute = false;
-					startInfo.CreateNoWindow = true;
-					startInfo.RedirectStandardOutput = true;
-					startInfo.RedirectStandardError = true;
-
-					startInfo.ArgumentList.Add("x");
-					startInfo.ArgumentList.Add("-y");
-					startInfo.ArgumentList.Add("-bd");
-					startInfo.ArgumentList.Add(
-						"-o" + extractionFolder
+					if (File.Exists(localLatestFile))
+					{
+						File.Delete(localLatestFile);
+					}
+				}
+				catch (Exception rollbackException)
+				{
+					throw new InvalidOperationException(
+						"AudioPlugins migration failed and the automatic rollback also failed." +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Migration error: " +
+						migrationException.Message +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Rollback error: " +
+						rollbackException.Message +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Backup folder:" +
+						Environment.NewLine +
+						backupFolder,
+						migrationException
 					);
-					startInfo.ArgumentList.Add(archiveFile);
+				}
 
-					// Capture 7-Zip output so a failure can report the actual extraction error.
-					using (Process process = new Process())
-					{
-						process.StartInfo = startInfo;
+				throw new InvalidOperationException(
+					"AudioPlugins migration failed. The previous unversioned SPS collection was restored." +
+					Environment.NewLine +
+					Environment.NewLine +
+					migrationException.Message,
+					migrationException
+				);
+			}
+		}
 
-						if (!process.Start())
-						{
-							throw new InvalidOperationException(
-								"Unable to start SyMenu 7z.exe."
-							);
-						}
+		/// <summary>
+		/// Backs up the current versioned collection, installs the verified replacement, and rolls back on failure.
+		/// </summary>
+		private static void updateExistingCollection(
+			string cacheFolder,
+			string trashFolder,
+			string localLatestFile,
+			string[] extractedSpsFiles,
+			string localVersion,
+			DateTime? localDate,
+			string onlineVersion)
+		{
+			if (!localDate.HasValue ||
+				!File.Exists(localLatestFile))
+			{
+				throw new InvalidOperationException(
+					"Update was stopped because the existing local collection marker is missing."
+				);
+			}
 
-						var outputTask =
-							process.StandardOutput.ReadToEndAsync();
+			string backupFolder =
+				getUniqueBackupFolder(
+					trashFolder,
+					localVersion
+				);
 
-						var errorTask =
-							process.StandardError.ReadToEndAsync();
+			string[] existingSpsFiles =
+				Directory.GetFiles(
+					cacheFolder,
+					"*.sps",
+					SearchOption.TopDirectoryOnly
+				);
 
-						process.WaitForExit();
+			List<string> backupSpsFiles =
+				new List<string>();
 
-						string processOutput =
-							outputTask.GetAwaiter().GetResult();
+			string backupLatestFile =
+				Path.Combine(
+					backupFolder,
+					"_latest.txt"
+				);
 
-						string processError =
-							errorTask.GetAwaiter().GetResult();
+			string temporaryLatestFile =
+				localLatestFile + ".new";
 
-						if (process.ExitCode != 0)
-						{
-							deleteArchiveForRetry(
-								archiveFile
-							);
+			bool backupComplete = false;
 
-							string errorMessage =
-								"7-Zip extraction failed with exit code " +
-								process.ExitCode + ".";
+			try
+			{
+				Directory.CreateDirectory(backupFolder);
 
-							if (!string.IsNullOrWhiteSpace(processError))
-							{
-								errorMessage +=
-									Environment.NewLine +
-									Environment.NewLine +
-									processError.Trim();
-							}
-
-							throw new InvalidDataException(
-								errorMessage
-							);
-						}
-					}
-
-					// Suite.zip is built from inside the repository Suite folder, so its
-					// _latest.txt and SPS files extract directly into this temporary folder.
-					string packagedLatestFile =
+				foreach (string existingSpsFile in existingSpsFiles)
+				{
+					string backupSpsFile =
 						Path.Combine(
-							extractionFolder,
-							"_latest.txt"
+							backupFolder,
+							Path.GetFileName(existingSpsFile)
 						);
 
-					if (!File.Exists(packagedLatestFile))
+					File.Copy(
+						existingSpsFile,
+						backupSpsFile,
+						false
+					);
+
+					backupSpsFiles.Add(backupSpsFile);
+				}
+
+				File.Copy(
+					localLatestFile,
+					backupLatestFile,
+					false
+				);
+
+				backupComplete = true;
+
+				foreach (string existingSpsFile in existingSpsFiles)
+				{
+					File.Delete(existingSpsFile);
+				}
+
+				foreach (string sourceSpsFile in extractedSpsFiles)
+				{
+					string destinationSpsFile =
+						Path.Combine(
+							cacheFolder,
+							Path.GetFileName(sourceSpsFile)
+						);
+
+					if (File.Exists(destinationSpsFile))
 					{
-						deleteArchiveForRetry(
-							archiveFile
-						);
-
-						throw new InvalidDataException(
-							"The downloaded Suite.zip does not contain _latest.txt."
+						throw new IOException(
+							"An SPS file with the same name already exists in _Cache: " +
+							Path.GetFileName(sourceSpsFile)
 						);
 					}
 
-					string packagedVersion =
-						File.ReadAllText(packagedLatestFile).Trim();
+					File.Copy(
+						sourceSpsFile,
+						destinationSpsFile,
+						false
+					);
+				}
 
-					if (!string.Equals(
-						packagedVersion,
-						onlineVersion,
-						StringComparison.Ordinal))
+				if (File.Exists(temporaryLatestFile))
+				{
+					File.Delete(temporaryLatestFile);
+				}
+
+				File.WriteAllText(
+					temporaryLatestFile,
+					onlineVersion + Environment.NewLine
+				);
+
+				File.Move(
+					temporaryLatestFile,
+					localLatestFile,
+					true
+				);
+			}
+			catch (Exception updateException)
+			{
+				if (File.Exists(temporaryLatestFile))
+				{
+					try
 					{
-						deleteArchiveForRetry(
-							archiveFile
-						);
+						File.Delete(temporaryLatestFile);
+					}
+					catch
+					{
+					}
+				}
 
-						throw new InvalidDataException(
-							"The downloaded Suite.zip does not match the published collection date. " +
-							"Please try the update again shortly."
-						);
+				if (!backupComplete)
+				{
+					try
+					{
+						if (Directory.Exists(backupFolder))
+						{
+							Directory.Delete(
+								backupFolder,
+								true
+							);
+						}
+					}
+					catch
+					{
 					}
 
-					// The published suite is intentionally flat: only SPS files directly
-					// inside the package root are part of the managed AudioPlugins collection.
-					string[] extractedSpsFiles =
+					throw;
+				}
+
+				try
+				{
+					string[] currentSpsFiles =
 						Directory.GetFiles(
-							extractionFolder,
+							cacheFolder,
 							"*.sps",
 							SearchOption.TopDirectoryOnly
 						);
 
-					if (extractedSpsFiles.Length == 0)
+					foreach (string currentSpsFile in currentSpsFiles)
 					{
-						deleteArchiveForRetry(
-							archiveFile
-						);
-
-						throw new InvalidDataException(
-							"The downloaded Suite.zip contains no SPS files."
-						);
+						File.Delete(currentSpsFile);
 					}
 
-					extractionStatus =
-						"Extracted successfully." +
-						Environment.NewLine +
-						"SPS files found: " +
-						extractedSpsFiles.Length;
-
-					// FIRST INSTALL: _Cache must not already contain SPS definitions.
-					// Copy the verified files, then commit _latest.txt last.
-					if (status == "FIRST INSTALL")
+					foreach (string backupSpsFile in backupSpsFiles)
 					{
-						string[] existingSpsFiles =
-							Directory.GetFiles(
-								cacheFolder,
-								"*.sps",
-								SearchOption.AllDirectories
-							);
-
-						if (existingSpsFiles.Length != 0)
-						{
-							throw new InvalidOperationException(
-								"First install was stopped because _Cache already contains SPS files. " +
-								"No existing SPS files were overwritten."
-							);
-						}
-
-						List<string> installedFiles =
-							new List<string>();
-
-						string temporaryLatestFile =
-							localLatestFile + ".new";
-
-						try
-						{
-							if (File.Exists(temporaryLatestFile))
-							{
-								File.Delete(temporaryLatestFile);
-							}
-
-							foreach (string sourceSpsFile in extractedSpsFiles)
-							{
-								string destinationSpsFile =
-									Path.Combine(
-										cacheFolder,
-										Path.GetFileName(sourceSpsFile)
-									);
-
-								if (File.Exists(destinationSpsFile))
-								{
-									throw new IOException(
-										"An SPS file with the same name already exists in _Cache: " +
-										Path.GetFileName(sourceSpsFile)
-									);
-								}
-
-								File.Copy(
-									sourceSpsFile,
-									destinationSpsFile,
-									false
-								);
-
-								installedFiles.Add(destinationSpsFile);
-							}
-
-							File.WriteAllText(
-								temporaryLatestFile,
-								onlineVersion + Environment.NewLine
-							);
-
-							File.Move(
-								temporaryLatestFile,
-								localLatestFile
-							);
-
-							installationStatus =
-								"First install completed successfully." +
-								Environment.NewLine +
-								"SPS files installed: " +
-								installedFiles.Count +
-								Environment.NewLine +
-								Environment.NewLine +
-								"Local marker:" +
-								Environment.NewLine +
-								localLatestFile;
-						}
-						catch
-						{
-							if (File.Exists(temporaryLatestFile))
-							{
-								try
-								{
-									File.Delete(temporaryLatestFile);
-								}
-								catch
-								{
-								}
-							}
-
-							foreach (string installedFile in installedFiles)
-							{
-								try
-								{
-									if (File.Exists(installedFile))
-									{
-										File.Delete(installedFile);
-									}
-								}
-								catch
-								{
-								}
-							}
-
-							throw;
-						}
-					}
-					// UNVERSIONED MIGRATION: preserve the unknown existing collection first,
-					// then replace it with the published set. Roll back from that backup on failure.
-					else if (status == "UNVERSIONED EXISTING SUITE")
-					{
-						string[] existingSpsFiles =
-							Directory.GetFiles(
-								cacheFolder,
-								"*.sps",
-								SearchOption.TopDirectoryOnly
-							);
-
-						if (existingSpsFiles.Length == 0)
-						{
-							throw new InvalidOperationException(
-								"Unversioned suite migration was requested, but no existing SPS files were found."
-							);
-						}
-
-						string backupFolder =
-							getUniqueBackupFolder(
-								trashFolder,
-								"Unversioned_" + onlineVersion
-							);
-
-						List<string> installedFiles =
-							new List<string>();
-
-						List<string> backupSpsFiles =
-							new List<string>();
-
-						string temporaryLatestFile =
-							localLatestFile + ".new";
-
-						bool backupComplete = false;
-
-						try
-						{
-							// Complete the backup before deleting anything from the active cache.
-							Directory.CreateDirectory(backupFolder);
-
-							foreach (string existingSpsFile in existingSpsFiles)
-							{
-								string backupSpsFile =
-									Path.Combine(
-										backupFolder,
-										Path.GetFileName(existingSpsFile)
-									);
-
-								File.Copy(
-									existingSpsFile,
-									backupSpsFile,
-									false
-								);
-
-								backupSpsFiles.Add(backupSpsFile);
-							}
-
-							backupComplete = true;
-
-							foreach (string existingSpsFile in existingSpsFiles)
-							{
-								File.Delete(existingSpsFile);
-							}
-
-							foreach (string sourceSpsFile in extractedSpsFiles)
-							{
-								string destinationSpsFile =
-									Path.Combine(
-										cacheFolder,
-										Path.GetFileName(sourceSpsFile)
-									);
-
-								if (File.Exists(destinationSpsFile))
-								{
-									throw new IOException(
-										"An SPS file with the same name already exists in _Cache: " +
-										Path.GetFileName(sourceSpsFile)
-									);
-								}
-
-								File.Copy(
-									sourceSpsFile,
-									destinationSpsFile,
-									false
-								);
-
-								installedFiles.Add(destinationSpsFile);
-							}
-
-							if (File.Exists(temporaryLatestFile))
-							{
-								File.Delete(temporaryLatestFile);
-							}
-
-							File.WriteAllText(
-								temporaryLatestFile,
-								onlineVersion + Environment.NewLine
-							);
-
-							File.Move(
-								temporaryLatestFile,
-								localLatestFile
-							);
-
-							installationStatus =
-								"Existing unversioned suite migrated successfully." +
-								Environment.NewLine +
-								"Current collection: " +
-								onlineVersion +
-								Environment.NewLine +
-								"SPS files installed: " +
-								installedFiles.Count +
-								Environment.NewLine +
-								Environment.NewLine +
-								"Backup:" +
-								Environment.NewLine +
-								backupFolder;
-						}
-						catch (Exception migrationException)
-						{
-							if (File.Exists(temporaryLatestFile))
-							{
-								try
-								{
-									File.Delete(temporaryLatestFile);
-								}
-								catch
-								{
-								}
-							}
-
-							if (!backupComplete)
-							{
-								try
-								{
-									if (Directory.Exists(backupFolder))
-									{
-										Directory.Delete(
-											backupFolder,
-											true
-										);
-									}
-								}
-								catch
-								{
-								}
-
-								throw;
-							}
-
-							// Backup completed, so restore the previous live collection before reporting failure.
-							try
-							{
-								string[] currentSpsFiles =
-									Directory.GetFiles(
-										cacheFolder,
-										"*.sps",
-										SearchOption.TopDirectoryOnly
-									);
-
-								foreach (string currentSpsFile in currentSpsFiles)
-								{
-									File.Delete(currentSpsFile);
-								}
-
-								foreach (string backupSpsFile in backupSpsFiles)
-								{
-									string restoredSpsFile =
-										Path.Combine(
-											cacheFolder,
-											Path.GetFileName(backupSpsFile)
-										);
-
-									File.Copy(
-										backupSpsFile,
-										restoredSpsFile,
-										true
-									);
-								}
-
-								if (File.Exists(localLatestFile))
-								{
-									File.Delete(localLatestFile);
-								}
-							}
-							catch (Exception rollbackException)
-							{
-								throw new InvalidOperationException(
-									"AudioPlugins migration failed and the automatic rollback also failed." +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Migration error: " +
-									migrationException.Message +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Rollback error: " +
-									rollbackException.Message +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Backup folder:" +
-									Environment.NewLine +
-									backupFolder,
-									migrationException
-								);
-							}
-
-							throw new InvalidOperationException(
-								"AudioPlugins migration failed. The previous unversioned SPS collection was restored." +
-								Environment.NewLine +
-								Environment.NewLine +
-								migrationException.Message,
-								migrationException
-							);
-						}
-					}
-					// NORMAL UPDATE: back up the currently versioned collection and marker,
-					// replace the SPS set as a whole, and advance the marker only after success.
-					else if (status == "UPDATE AVAILABLE")
-					{
-						if (!localDate.HasValue ||
-							!File.Exists(localLatestFile))
-						{
-							throw new InvalidOperationException(
-								"Update was stopped because the existing local collection marker is missing."
-							);
-						}
-
-						string backupFolder =
-							getUniqueBackupFolder(
-								trashFolder,
-								localVersion
-							);
-
-						string[] existingSpsFiles =
-							Directory.GetFiles(
-								cacheFolder,
-								"*.sps",
-								SearchOption.TopDirectoryOnly
-							);
-
-						List<string> installedFiles =
-							new List<string>();
-
-						List<string> backupSpsFiles =
-							new List<string>();
-
-						string backupLatestFile =
+						string restoredSpsFile =
 							Path.Combine(
-								backupFolder,
-								"_latest.txt"
+								cacheFolder,
+								Path.GetFileName(backupSpsFile)
 							);
 
-						string temporaryLatestFile =
-							localLatestFile + ".new";
-
-						bool backupComplete = false;
-
-						try
-						{
-							// Complete the backup before deleting anything from the active cache.
-							Directory.CreateDirectory(backupFolder);
-
-							foreach (string existingSpsFile in existingSpsFiles)
-							{
-								string backupSpsFile =
-									Path.Combine(
-										backupFolder,
-										Path.GetFileName(existingSpsFile)
-									);
-
-								File.Copy(
-									existingSpsFile,
-									backupSpsFile,
-									false
-								);
-
-								backupSpsFiles.Add(backupSpsFile);
-							}
-
-							File.Copy(
-								localLatestFile,
-								backupLatestFile,
-								false
-							);
-
-							backupComplete = true;
-
-							foreach (string existingSpsFile in existingSpsFiles)
-							{
-								File.Delete(existingSpsFile);
-							}
-
-							foreach (string sourceSpsFile in extractedSpsFiles)
-							{
-								string destinationSpsFile =
-									Path.Combine(
-										cacheFolder,
-										Path.GetFileName(sourceSpsFile)
-									);
-
-								if (File.Exists(destinationSpsFile))
-								{
-									throw new IOException(
-										"An SPS file with the same name already exists in _Cache: " +
-										Path.GetFileName(sourceSpsFile)
-									);
-								}
-
-								File.Copy(
-									sourceSpsFile,
-									destinationSpsFile,
-									false
-								);
-
-								installedFiles.Add(destinationSpsFile);
-							}
-
-							if (File.Exists(temporaryLatestFile))
-							{
-								File.Delete(temporaryLatestFile);
-							}
-
-							File.WriteAllText(
-								temporaryLatestFile,
-								onlineVersion + Environment.NewLine
-							);
-
-							File.Move(
-								temporaryLatestFile,
-								localLatestFile,
-								true
-							);
-
-							installationStatus =
-								"Update completed successfully." +
-								Environment.NewLine +
-								"Previous collection: " +
-								localVersion +
-								Environment.NewLine +
-								"Current collection: " +
-								onlineVersion +
-								Environment.NewLine +
-								"SPS files installed: " +
-								installedFiles.Count +
-								Environment.NewLine +
-								Environment.NewLine +
-								"Backup:" +
-								Environment.NewLine +
-								backupFolder;
-						}
-						catch (Exception updateException)
-						{
-							if (File.Exists(temporaryLatestFile))
-							{
-								try
-								{
-									File.Delete(temporaryLatestFile);
-								}
-								catch
-								{
-								}
-							}
-
-							if (!backupComplete)
-							{
-								try
-								{
-									if (Directory.Exists(backupFolder))
-									{
-										Directory.Delete(
-											backupFolder,
-											true
-										);
-									}
-								}
-								catch
-								{
-								}
-
-								throw;
-							}
-
-							// Backup completed, so restore the previous live collection before reporting failure.
-							try
-							{
-								string[] currentSpsFiles =
-									Directory.GetFiles(
-										cacheFolder,
-										"*.sps",
-										SearchOption.TopDirectoryOnly
-									);
-
-								foreach (string currentSpsFile in currentSpsFiles)
-								{
-									File.Delete(currentSpsFile);
-								}
-
-								foreach (string backupSpsFile in backupSpsFiles)
-								{
-									string restoredSpsFile =
-										Path.Combine(
-											cacheFolder,
-											Path.GetFileName(backupSpsFile)
-										);
-
-									File.Copy(
-										backupSpsFile,
-										restoredSpsFile,
-										true
-									);
-								}
-
-								File.Copy(
-									backupLatestFile,
-									localLatestFile,
-									true
-								);
-							}
-							catch (Exception rollbackException)
-							{
-								throw new InvalidOperationException(
-									"AudioPlugins update failed and the automatic rollback also failed." +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Update error: " +
-									updateException.Message +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Rollback error: " +
-									rollbackException.Message +
-									Environment.NewLine +
-									Environment.NewLine +
-									"Backup folder:" +
-									Environment.NewLine +
-									backupFolder,
-									updateException
-								);
-							}
-
-							throw new InvalidOperationException(
-								"AudioPlugins update failed. The previous SPS collection was restored." +
-								Environment.NewLine +
-								Environment.NewLine +
-								updateException.Message,
-								updateException
-							);
-						}
-					}
-
-					// Successful operations no longer need the temporary extraction workspace.
-					if (Directory.Exists(extractionFolder))
-					{
-						Directory.Delete(
-							extractionFolder,
+						File.Copy(
+							backupSpsFile,
+							restoredSpsFile,
 							true
 						);
 					}
+
+					File.Copy(
+						backupLatestFile,
+						localLatestFile,
+						true
+					);
+				}
+				catch (Exception rollbackException)
+				{
+					throw new InvalidOperationException(
+						"AudioPlugins update failed and the automatic rollback also failed." +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Update error: " +
+						updateException.Message +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Rollback error: " +
+						rollbackException.Message +
+						Environment.NewLine +
+						Environment.NewLine +
+						"Backup folder:" +
+						Environment.NewLine +
+						backupFolder,
+						updateException
+					);
 				}
 
-				// Automatic startup checks are silent on success. Only an explicit
-				// plugin-menu check displays the final status to the user.
-				if (showResult)
-				{
-					string resultMessage;
+				throw new InvalidOperationException(
+					"AudioPlugins update failed. The previous SPS collection was restored." +
+					Environment.NewLine +
+					Environment.NewLine +
+					updateException.Message,
+					updateException
+				);
+			}
+		}
 
-					if (status == "UP TO DATE")
+		/// <summary>
+		/// Removes the temporary extraction workspace after a successful install/update operation.
+		/// </summary>
+		private static void cleanupExtractionFolder(
+			string extractionFolder)
+		{
+			if (Directory.Exists(extractionFolder))
+			{
+				Directory.Delete(
+					extractionFolder,
+					true
+				);
+			}
+		}
+
+		/// <summary>
+		/// Displays the concise result used by an explicit manual check.
+		/// </summary>
+		private static void showSuiteCheckResult(
+			string status,
+			string localVersion,
+			string onlineVersion)
+		{
+			string resultMessage;
+
+			if (status == "UP TO DATE")
+			{
+				resultMessage =
+					"AudioPlugins suite is up to date." +
+					Environment.NewLine +
+					Environment.NewLine +
+					"Collection: " +
+					onlineVersion;
+			}
+			else if (status == "LOCAL NEWER")
+			{
+				resultMessage =
+					"The installed AudioPlugins collection is newer than the published collection." +
+					Environment.NewLine +
+					Environment.NewLine +
+					"Installed: " +
+					localVersion +
+					Environment.NewLine +
+					"Published: " +
+					onlineVersion +
+					Environment.NewLine +
+					Environment.NewLine +
+					"No changes were made.";
+			}
+			else if (status == "UNVERSIONED EXISTING SUITE")
+			{
+				resultMessage =
+					"Existing AudioPlugins SPS files were backed up and migrated successfully." +
+					Environment.NewLine +
+					Environment.NewLine +
+					"Collection: " +
+					onlineVersion;
+			}
+			else if (status == "FIRST INSTALL")
+			{
+				resultMessage =
+					"AudioPlugins suite installed successfully." +
+					Environment.NewLine +
+					Environment.NewLine +
+					"Collection: " +
+					onlineVersion;
+			}
+			else
+			{
+				resultMessage =
+					"AudioPlugins suite updated successfully." +
+					Environment.NewLine +
+					Environment.NewLine +
+					"Previous collection: " +
+					localVersion +
+					Environment.NewLine +
+					"Current collection: " +
+					onlineVersion;
+			}
+
+			MessageBox.Show(
+				resultMessage,
+				"AudioPlugins"
+			);
+		}
+
+		/// <summary>
+		/// Performs the complete AudioPlugins suite-definition check/update transaction.
+		/// showResult is true for an explicit menu click and false for automatic startup.
+		/// </summary>
+		private void checkSuiteDefinitions(bool showResult)
+		{
+			try
+			{
+				resolveSuitePaths(
+					out string syMenuRoot,
+					out string cacheFolder,
+					out string trashFolder,
+					out string localLatestFile
+				);
+
+				string onlineVersion =
+					getOnlineVersion(
+						out DateTime onlineDate
+					);
+
+				string status =
+					getSuiteStatus(
+						cacheFolder,
+						localLatestFile,
+						onlineDate,
+						out string localVersion,
+						out DateTime? localDate
+					);
+
+				if (requiresSuitePackage(status))
+				{
+					string archiveFile =
+						downloadSuiteArchive(
+							trashFolder,
+							onlineVersion
+						);
+
+					string[] extractedSpsFiles =
+						extractAndValidateSuiteArchive(
+							syMenuRoot,
+							trashFolder,
+							archiveFile,
+							onlineVersion,
+							out string extractionFolder
+						);
+
+					if (status == "FIRST INSTALL")
 					{
-						resultMessage =
-							"AudioPlugins suite is up to date." +
-							Environment.NewLine +
-							Environment.NewLine +
-							"Collection: " +
-							onlineVersion;
-					}
-					else if (status == "LOCAL NEWER")
-					{
-						resultMessage =
-							"The installed AudioPlugins collection is newer than the published collection." +
-							Environment.NewLine +
-							Environment.NewLine +
-							"Installed: " +
-							localVersion +
-							Environment.NewLine +
-							"Published: " +
-							onlineVersion +
-							Environment.NewLine +
-							Environment.NewLine +
-							"No changes were made.";
+						installFirstCollection(
+							cacheFolder,
+							localLatestFile,
+							extractedSpsFiles,
+							onlineVersion
+						);
 					}
 					else if (status == "UNVERSIONED EXISTING SUITE")
 					{
-						resultMessage =
-							"Existing AudioPlugins SPS files were backed up and migrated successfully." +
-							Environment.NewLine +
-							Environment.NewLine +
-							"Collection: " +
-							onlineVersion;
-					}
-					else if (status == "FIRST INSTALL")
-					{
-						resultMessage =
-							"AudioPlugins suite installed successfully." +
-							Environment.NewLine +
-							Environment.NewLine +
-							"Collection: " +
-							onlineVersion;
+						migrateUnversionedCollection(
+							cacheFolder,
+							trashFolder,
+							localLatestFile,
+							extractedSpsFiles,
+							onlineVersion
+						);
 					}
 					else
 					{
-						resultMessage =
-							"AudioPlugins suite updated successfully." +
-							Environment.NewLine +
-							Environment.NewLine +
-							"Previous collection: " +
-							localVersion +
-							Environment.NewLine +
-							"Current collection: " +
-							onlineVersion;
+						updateExistingCollection(
+							cacheFolder,
+							trashFolder,
+							localLatestFile,
+							extractedSpsFiles,
+							localVersion,
+							localDate,
+							onlineVersion
+						);
 					}
 
-					MessageBox.Show(
-						resultMessage,
-						"AudioPlugins"
+					cleanupExtractionFolder(extractionFolder);
+				}
+
+				if (showResult)
+				{
+					showSuiteCheckResult(
+						status,
+						localVersion,
+						onlineVersion
 					);
 				}
 			}
@@ -1609,8 +1651,6 @@ namespace SyMenu.Plugin.AudioPlugins
 					return;
 				}
 
-				// All other failures are unexpected or potentially persistent. Record full
-				// diagnostic detail beside the plugin DLL before showing the concise error.
 				writeCriticalLog(
 					showResult
 						? "Manual suite-definition check"

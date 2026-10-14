@@ -1,17 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <Import Project="Version.props" />
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Only compile files explicitly listed below. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+
   <ItemGroup>
-    <Compile Remove="CheckLauncher\**\*.cs" />
+    <!-- The plugin itself uses only this source file. -->
+    <Compile Include="EntryPoint.cs" />
+
     <EmbeddedResource Include="AppIcons\pluginIcon.ico" />
   </ItemGroup>
+
   <ItemGroup>
     <Reference Include="SyMenu.Plugin.Resources">
       <HintPath>res\SyMenu.Plugin.Resources.dll</HintPath>
     </Reference>
   </ItemGroup>
+
 </Project>

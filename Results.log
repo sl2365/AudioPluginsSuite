@@ -1,0 +1,40 @@
+
+============================================================
+ AudioPlugins SyMenu Plugin - Build
+============================================================
+
+Portable .NET SDK:
+D:\Documents\- TEST -\_Projects\AudioPlugins\..\_Tools\dotNet\_10.0.401\dotnet.exe
+
+Checking SDK...
+10.0.401
+
+Building plugin...
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SyMenu.Plugin.AudioPlugins -> D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.AudioPlugins.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.27
+
+Building manual-check launcher...
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AudioPlugins.Check -> D:\Documents\- TEST -\_Projects\AudioPlugins\CheckLauncher\bin\Release\net10.0-windows\win-x64\AudioPlugins.Check.dll
+  AudioPlugins.Check -> D:\Documents\- TEST -\_Projects\AudioPlugins\Build\_LauncherPublish\
+
+============================================================
+ BUILD SUCCESSFUL
+============================================================
+
+Plugin:
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.AudioPlugins.dll
+
+Manual check launcher:
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\AudioPlugins.Check.exe
+

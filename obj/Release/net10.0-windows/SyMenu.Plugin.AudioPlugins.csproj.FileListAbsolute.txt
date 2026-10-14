@@ -1,0 +1,14 @@
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.AudioPlugins.deps.json
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.AudioPlugins.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.AudioPlugins.pdb
+D:\Documents\- TEST -\_Projects\AudioPlugins\Build\SyMenu.Plugin.Resources.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.csproj.AssemblyReference.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.GeneratedMSBuildEditorConfig.editorconfig
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.csproj.CoreCompileInputs.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.P.B315C536.Up2Date
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\refint\SyMenu.Plugin.AudioPlugins.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.pdb
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\ref\SyMenu.Plugin.AudioPlugins.dll
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.AssemblyInfoInputs.cache
+D:\Documents\- TEST -\_Projects\AudioPlugins\obj\Release\net10.0-windows\SyMenu.Plugin.AudioPlugins.AssemblyInfo.cs
