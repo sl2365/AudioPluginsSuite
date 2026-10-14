@@ -1,9 +1,9 @@
 # AudioPlugins SyMenu Plugin
 
-[![Latest](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsl2365%2FAudioPluginsSuite%2Fmain%2F_latest.txt&search=%5Cd%7B4%7D%5C.%5Cd%7B2%7D%5C.%5Cd%7B2%7D&label=Latest&style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/AudioPluginsSuite/releases/latest/download/SyMenu.Plugin.AudioPlugins.rar)
+[![Suite](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsl2365%2FAudioPluginsSuite%2Fmain%2FSuite%2F_latest.txt&search=%5Cd%7B4%7D%5C.%5Cd%7B2%7D%5C.%5Cd%7B2%7D&label=Suite&style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/AudioPluginsSuite/tree/main/Suite)
 
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/latest/SyMenu.Plugin.AudioPlugins.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases/latest)
-[![Total Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/total?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-total&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases)
+[![All Release Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/total?style=for-the-badge-square&logo=github&logoColor=white&label=all-release-downloads&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases)
 
 A SyMenu plugin that keeps the custom **AudioPlugins** SPS suite definitions up to date from the
 [AudioPluginsSuite](https://github.com/sl2365/AudioPluginsSuite) repository.
@@ -13,34 +13,67 @@ AudioPlugins suite's SPS definition files current. SyMenu then uses those SPS de
 determine which installed applications have updates available and presents those updates through
 the normal SPS Manager interface.
 
-This is a collection of SPS files used with SyMenu to allow auto-install and update of the listed plugins. At present, only my own releases are here, but this will hopefully be expanded to include other devs SPS files if I can get them interested in adding this little extra task to their dev time. Anyone interested, feel free to contact me by creating a PR or issue.
+The public SPS collection lives in the repository under `Suite/`. Developers who want an SPS added
+to the public collection can submit a pull request or open an issue and provide the SPS file.
+
+The AudioPlugins suite is centrally managed. Manual additions to SyMenu's local AudioPlugins
+`_Cache` are not supported and may be removed when the published SPS set is replaced during an
+update.
 
 Here's what it does:
 
 ```text
 Startup/manual check
-→ read online _latest.txt
+→ read online Suite/_latest.txt
 → compare dates
-→ download dated RAR if needed
+→ download Suite.zip if needed
 → extract with SyMenu\Lib\7z.exe
-→ verify SPS files
+→ verify packaged _latest.txt and SPS files
 → back up previous collection
 → replace the SPS set
-→ write _latest.txt last
+→ write local _latest.txt last
 → rollback on failure
 → remove temporary extraction workspace
 ```
+
+## Repository layout
+
+The repository keeps the plugin project and the public SPS suite together, but they are published
+separately:
+
+```text
+AudioPluginsSuite\
+├─ Suite\
+│  ├─ _latest.txt
+│  ├─ PluginA.sps
+│  ├─ PluginB.sps
+│  └─ ...
+├─ .github\
+│  └─ workflows\
+│     └─ build-suite.yml
+├─ plugin source files
+└─ README.md
+```
+
+Normal GitHub releases are for the **plugin itself**. The current plugin release package is:
+
+```text
+SyMenu.Plugin.AudioPlugins.rar
+```
+
+The SPS collection is packaged automatically by GitHub Actions and published separately as
+`Suite.zip` on the fixed pre-release tag `suite-current`.
 
 ## Repository endpoints
 
 The updater uses two fixed endpoints:
 
 - Suite collection marker:
-  `https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/_latest.txt`
-- Current suite archive:
-  `https://github.com/sl2365/AudioPluginsSuite/releases/latest/download/AudioPlugins.rar`
+  `https://raw.githubusercontent.com/sl2365/AudioPluginsSuite/main/Suite/_latest.txt`
+- Generated suite package:
+  `https://github.com/sl2365/AudioPluginsSuite/releases/download/suite-current/Suite.zip`
 
-`_latest.txt` contains one collection date in the exact format:
+`Suite/_latest.txt` contains one collection date in the exact format:
 
 ```text
 YYYY.MM.DD
@@ -52,8 +85,8 @@ Example:
 2026.10.13
 ```
 
-The release archive keeps the permanent filename `AudioPlugins.rar`, so the plugin's download URL
-does not need to change when a new SPS collection is published.
+`Suite.zip` is generated automatically from the contents of the repository `Suite/` folder whenever
+that folder changes.
 
 ## SyMenu integration
 
@@ -75,12 +108,22 @@ Other update/install errors are still reported.
 
 Clicking the **AudioPlugins** plugin menu entry performs a fresh online check and displays the
 result. If the manual check cannot reach the online source, the user is shown a connectivity message.
-This provides a manual suite-definition refresh independently of SyMenu startup.
 
-The plugin does not currently hook the SPS Manager's suite-specific manual refresh button. The exact
-behaviour of that button for custom suites, and whether SyMenu can expose a suitable plugin extension
-point, is still being clarified with the SyMenu developer. Until then, the **AudioPlugins** plugin menu
-entry is the supported manual online refresh for this custom suite.
+The plugin also includes:
+
+```text
+AudioPlugins.Check.exe
+```
+
+When SyMenu is already running, this helper sends a local command to the loaded AudioPlugins plugin
+and performs the same manual online check as **SyMenu → Plugins → AudioPlugins**. This allows the
+helper EXE to be added to SyMenu as a normal portable item if preferred.
+
+`AudioPlugins.Check.exe` does not contain a second updater implementation. SyMenu and the plugin must
+be running because the EXE only signals the already-loaded plugin.
+
+The plugin does not hook SyMenu's SPS Manager refresh button. Manual online refresh is provided by
+the plugin menu item or `AudioPlugins.Check.exe`.
 
 ## Suite location
 
@@ -91,6 +134,12 @@ Expected plugin location:
 
 ```text
 SyMenu\Plugin\SyMenu.Plugin.AudioPlugins\SyMenu.Plugin.AudioPlugins.dll
+```
+
+The companion launcher can be placed beside it:
+
+```text
+SyMenu\Plugin\SyMenu.Plugin.AudioPlugins\AudioPlugins.Check.exe
 ```
 
 The AudioPlugins suite is located at:
@@ -116,7 +165,7 @@ SyMenu\
          │  └─ ...
          │
          └─ _Trash\
-            ├─ AudioPlugins_2026.10.13.rar
+            ├─ AudioPlugins_2026.10.13.zip
             ├─ 2026.09.28\
             │  ├─ _latest.txt
             │  ├─ old PluginA.sps
@@ -137,21 +186,23 @@ The update transaction is:
    - `ProgramFiles\SPSSuite\AudioPlugins`
    - `ProgramFiles\SPSSuite\AudioPlugins\_Cache`
    - `ProgramFiles\SPSSuite\AudioPlugins\_Trash`
-3. Download/read the online `_latest.txt`.
+3. Download/read `Suite/_latest.txt`.
 4. Validate the value as an exact `YYYY.MM.DD` date.
 5. Read `_Cache\_latest.txt`, if present.
 6. Compare the local collection date with the online collection date.
-7. If both dates match, stop. No RAR is downloaded.
+7. If both dates match, stop. `Suite.zip` is not downloaded.
 8. If no local marker exists:
    - if `_Cache` contains no SPS files, treat the operation as a first installation;
    - if SPS files already exist, treat them as an unversioned existing suite, back them up, and
      migrate them to the current published collection.
 9. If the online collection is newer:
-   - download the fixed `AudioPlugins.rar` release asset;
+   - download the fixed `Suite.zip` asset from the `suite-current` pre-release;
    - initially save it with a temporary `.download` suffix;
    - after a successful download, retain it in `_Trash` using the collection date, for example
-     `AudioPlugins_2026.10.13.rar`;
+     `AudioPlugins_2026.10.13.zip`;
    - extract it with SyMenu's `Lib\7z.exe` into `_Trash\_ExtractWork`;
+   - verify that the package contains `_latest.txt`;
+   - verify that the packaged `_latest.txt` matches the online collection date;
    - verify that at least one SPS file was extracted;
    - copy the previous SPS definitions and previous `_latest.txt` into a backup directory under
      `_Trash`, named with the previous local collection date;
@@ -166,13 +217,16 @@ The update transaction is:
 If the local collection date is newer than the published collection date, the plugin reports
 `LOCAL NEWER` during a manual check and makes no changes.
 
+Only one suite-definition transaction can run at a time. Startup, the plugin menu, and
+`AudioPlugins.Check.exe` all share the same concurrency guard.
+
 ## First installation
 
 For a clean first installation, the plugin:
 
 1. Creates the AudioPlugins suite directory structure if needed.
-2. Downloads and validates the current RAR.
-3. Extracts and verifies the SPS files.
+2. Downloads and validates the current `Suite.zip`.
+3. Extracts and verifies the collection marker and SPS files.
 4. Installs the SPS files into `_Cache`.
 5. Writes `_Cache\_latest.txt` last.
 
@@ -199,9 +253,10 @@ The local `_latest.txt` marker is never advanced until the new SPS collection ha
 successfully.
 
 If the online marker contains an invalid date, the archive download fails, the archive cannot be
-extracted, or no SPS files are found, the active SPS collection is not advanced.
+extracted, the packaged marker does not match the published collection date, or no SPS files are
+found, the active SPS collection is not advanced.
 
-A downloaded dated RAR that fails extraction/validation is removed so the next check can download a
+A downloaded dated ZIP that fails extraction/validation is removed so the next check can download a
 fresh copy instead of repeatedly retrying the same bad archive.
 
 Loss of internet connectivity or an online-check timeout is silent during automatic SyMenu startup.
@@ -235,32 +290,75 @@ message only when the user explicitly runs a manual AudioPlugins check.
 Logging is best-effort. A failure to write the diagnostic log never replaces or hides the original
 plugin error.
 
-## RAR handling
+## Suite package handling
 
-The published suite collection is intentionally distributed as `AudioPlugins.rar`.
+The published SPS collection is distributed as:
 
-The plugin does not require WinRAR to be installed on the user's machine. It uses the `7z.exe`
-already distributed with SyMenu:
+```text
+Suite.zip
+```
+
+The ZIP is not built manually. GitHub Actions creates it automatically from the repository `Suite/`
+folder and uploads/replaces it on the fixed `suite-current` pre-release.
+
+The plugin uses the `7z.exe` already distributed with SyMenu:
 
 ```text
 SyMenu\Lib\7z.exe
 ```
 
-The plugin only needs archive extraction. Archive creation remains part of the maintainer's existing
-WinRAR publishing workflow.
+No separate archive utility is required on the user's machine.
 
 ## Publishing a suite-definition update
 
-The maintainer's publishing process is:
+The maintainer's normal publishing process is:
 
-1. Update the required master SPS files.
-2. Create a new `AudioPlugins.rar`.
-3. Replace the `AudioPlugins.rar` asset on the current/latest GitHub release.
-4. Update repository `_latest.txt` to the new collection date in `YYYY.MM.DD` format.
-5. Commit/publish `_latest.txt`.
+1. Add, remove, or update the required `.sps` files under `Suite/`.
+2. Update `Suite/_latest.txt` to the new collection date in exact `YYYY.MM.DD` format.
+3. Commit/push the changes to `main`.
+4. GitHub Actions automatically validates the Suite folder, builds `Suite.zip`, and replaces the
+   package on the `suite-current` pre-release.
 
-On the next startup or manual plugin check, the plugin compares the new date with the locally
-installed collection and updates the SPS definitions when required.
+No manual ZIP creation or release-asset replacement is required for normal SPS collection updates.
+
+On the next SyMenu startup or manual plugin check, the plugin compares the new collection date with
+the locally installed collection and updates the SPS definitions when required.
+
+## Contributing SPS files
+
+The `Suite/` folder is the authoritative public SPS collection.
+
+A developer who wants an SPS definition included for all AudioPlugins users can:
+
+1. Fork the repository.
+2. Add or update the `.sps` file under `Suite/`.
+3. Submit a pull request.
+
+Alternatively, a developer can open an issue and provide the SPS file for review.
+
+After an accepted change is merged and `Suite/_latest.txt` is advanced, GitHub Actions automatically
+publishes the refreshed `Suite.zip`.
+
+## Plugin releases
+
+Normal GitHub releases are reserved for the plugin itself.
+
+The current plugin release is version:
+
+```text
+1.1.0
+```
+
+and the release asset is:
+
+```text
+SyMenu.Plugin.AudioPlugins.rar
+```
+
+The plugin release package contains the built plugin and companion manual-check launcher.
+
+The automatically generated `suite-current` pre-release is separate from the normal plugin release
+and exists only to provide the current `Suite.zip` to installed plugins.
 
 ## Build
 
@@ -285,10 +383,21 @@ _Projects\
 │     └─ _10.0.401\
 │        └─ dotnet.exe
 └─ AudioPlugins\
+   ├─ CheckLauncher\
+   │  ├─ AudioPlugins.Check.csproj
+   │  └─ Program.cs
+   ├─ Version.props
    └─ - Build.bat
 ```
 
-`- Build.bat` uses the SDK by relative path and writes its build output to `Results.log`.
+`Version.props` is shared by the plugin and launcher so both outputs use the same release version.
+
+`- Build.bat` uses the SDK by relative path, writes its build output to `Results.log`, and produces:
+
+```text
+Build\SyMenu.Plugin.AudioPlugins.dll
+Build\AudioPlugins.Check.exe
+```
 
 The SyMenu interface assembly is referenced while building but is not distributed beside the plugin
 DLL because SyMenu supplies `SyMenu.Plugin.Resources.dll` itself.
@@ -298,17 +407,24 @@ DLL because SyMenu supplies `SyMenu.Plugin.Resources.dll` itself.
 Confirmed working:
 
 - portable .NET 10 build environment;
+- shared plugin/launcher versioning;
 - plugin compilation and SyMenu discovery/loading;
 - normal plugin menu callback;
 - `ISyPluginNotificationStartup`;
+- companion `AudioPlugins.Check.exe` manual launcher;
+- named-pipe communication from the launcher to the loaded plugin;
+- single-check concurrency protection;
 - silent successful startup checks;
 - manual plugin checks with visible status;
 - automatic derivation of the SyMenu root from the plugin DLL location;
 - automatic creation of the AudioPlugins suite structure;
-- online `_latest.txt` retrieval and strict `YYYY.MM.DD` validation;
+- online `Suite/_latest.txt` retrieval and strict `YYYY.MM.DD` validation;
 - `FIRST INSTALL`, `UPDATE AVAILABLE`, `UP TO DATE`, and `LOCAL NEWER` detection;
-- static GitHub release-asset download with temporary `.download` protection;
+- automatic GitHub Actions packaging of the repository `Suite/` folder;
+- fixed `suite-current` pre-release containing `Suite.zip`;
+- dated `Suite.zip` download with temporary `.download` protection;
 - extraction through SyMenu's bundled `Lib\7z.exe`;
+- packaged marker/date validation;
 - SPS archive-content verification;
 - first installation;
 - dated backup of the previous SPS collection;
@@ -318,10 +434,9 @@ Confirmed working:
 - automatic cleanup of the extraction workspace after success;
 - protected migration of pre-existing SPS files when `_latest.txt` is missing;
 - unique backup-folder naming when a previous backup already exists;
-- automatic removal of a failed/corrupt dated RAR so a later check can re-download it;
+- automatic removal of a failed/corrupt dated ZIP so a later check can re-download it;
 - silent offline/timeout handling during automatic startup checks;
 - visible connectivity errors for manual checks;
 - error-only critical diagnostic logging beside the plugin DLL.
 
-The core plugin update workflow is complete. Integration with the suite-specific SPS Manager manual
-refresh button is not currently implemented and remains pending clarification from the SyMenu developer.
+The core plugin and automated SPS suite publishing workflow are complete.
