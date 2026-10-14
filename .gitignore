@@ -1,0 +1,15 @@
+# .NET / Visual Studio generated files
+bin/
+obj/
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Project build output
+Build/
+Results.log
+
+# Runtime diagnostic log if copied back into the project by mistake
+AudioPlugins.log
