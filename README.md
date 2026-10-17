@@ -1,9 +1,12 @@
 # AudioPlugins SyMenu Plugin
 
-[![Suite](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsl2365%2FAudioPluginsSuite%2Fmain%2FSuite%2F_latest.txt&search=%5Cd%7B4%7D%5C.%5Cd%7B2%7D%5C.%5Cd%7B2%7D&label=Suite&style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/AudioPluginsSuite/tree/main/Suite)
+<div align="center">
 
+[![Suite](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsl2365%2FAudioPluginsSuite%2Fmain%2FSuite%2F_latest.txt&search=%5Cd%7B4%7D%5C.%5Cd%7B2%7D%5C.%5Cd%7B2%7D&label=Suite&style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/AudioPluginsSuite/tree/main/Suite)
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/latest/SyMenu.Plugin.AudioPlugins.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases/latest)
 [![All Release Downloads](https://img.shields.io/github/downloads/sl2365/AudioPluginsSuite/total?style=for-the-badge-square&logo=github&logoColor=white&label=all-release-downloads&color=blue)](https://github.com/sl2365/AudioPluginsSuite/releases)
+
+</div>
 
 A SyMenu plugin that keeps the custom **AudioPlugins** SPS suite definitions up to date from the
 [AudioPluginsSuite](https://github.com/sl2365/AudioPluginsSuite) repository.
