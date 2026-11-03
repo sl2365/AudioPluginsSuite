@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>PolyHostInterface</ProgramName>
-  <Version>3.4.3</Version>
-  <ReleaseDate>2026-11-01</ReleaseDate>
+  <Version>3.5.0</Version>
+  <ReleaseDate>2026-11-03</ReleaseDate>
   <Category>Audio - Synthesizers</Category>
   <Description>PolyHostInterface is available as a Standalone and VST3 plugin.
 It is a replacement for apps like TobyBears MiniHost, SaviHost and Tone2's NanoHost.
@@ -31,13 +31,13 @@ Pointer mappings can be saved and even shared. Create a map for a plugin and it 
   <CleanUpdate>false</CleanUpdate>
   <BuiltInUpdater>false</BuiltInUpdater>
   <DownloadUrl>https://github.com/sl2365/PolyHostInterface/releases/latest/download/PolyHostInterface.rar</DownloadUrl>
-  <DownloadSizeKb>23275</DownloadSizeKb>
+  <DownloadSizeKb>23323</DownloadSizeKb>
   <ProgramIconBase64>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAOvAAADrwBlbxySQAAAnxJREFUOE99k9tLk2Ecx58LL4uCoIugiyAoKBIvBoXFwGBgIBkUXQRCB+kiiFrQTUFGEEUgFcEoNdxrh22vbnPWtrLWSDc3X3XObe/rDu6UbrkDw0N3g288j++7hpV/wIfv4ff9EUIImer81SBcWdP6L66K3o5KdexCCe7zBXw9m8do+yKcbVl8bE3BpklULS0xkVdLtwzN4QbKyvC63X9pFd6OCraAYWmJYVAtwdAcxrujc/YBVaCBMGUZDulWkHatQ3hUZPBsbxGSrYyIpYiwtYBpLgfjCQZjQBWAvknQEtk2PJfLSDrXmHKIKyHrXcXk8zyGNQmYT0bBq0U4bsYwZ80xuL9JQN8Rn0iUzOKbFXhuL+Nz+yIipjISXyoY1sSZ7SD/E/YbMbw9FoT76QLsdyIUxqtD3ipRMsdtK3LmDCRrCWFzoZY5OJhH0JIDp5qBXiVAMKUpDN3BMRClsKitAkdbhhVGM4eGlsGrJRiPhxHglzAz+IPZ7m30YdKUYvCL/W4Qpe25gRJc17OsbaFnCWl/RWkb8e9FTPQn0dfoA3d6EuP6GIOf7XOBKKdynEsj6iyzwqjtkc75WtvWayGW+eVhD4ShFHpPjTO4e+8oSP2dv91NQ3IUMHJ1nhWmtE1tc2f8mDKnMNwVqMFP9jhBNo+Eb43A9zoD8VNeORVmP2QxzsXRo/mjTOHHu+0g8jzrF8aUp00Z5VTwGRdqmevhh7tGqoRuezNMlTdO5YHuwBgmDIl/wXiw0yoSXi1pN8NU2f8+Cb9xgcFeQ/xveIcV97dbtIR+lfwYNVgZyX9sy7DZfm/b0MZH0q/qbxK0dNt0nlvAVWqbKnfJ8G/KEbqf6aOcrgAAAABJRU5ErkJggg==</ProgramIconBase64>
   <SPSPublisherName>sl23</SPSPublisherName>
   <SPSLicense>CC Attribution-NoDerivatives 4.0 International</SPSLicense>
   <SPSProgramReport>https://www.portablefreeware.com/forums/viewtopic.php?t=26861</SPSProgramReport>
   <VirusTotalResult>
-    <Permalink>https://www.virustotal.com/gui/file/c5f524b1914d6885206845bc400a6aa2df255c9caa1aae725578988bdac6614d/detection/f-c5f524b1914d6885206845bc400a6aa2df255c9caa1aae725578988bdac6614d-1793554812</Permalink>
+    <Permalink>https://www.virustotal.com/gui/file/f91036144ee3b61a3836e6e8f583e4f53f9ad38d0efb23b0c21084e6c5a95033/detection/f-f91036144ee3b61a3836e6e8f583e4f53f9ad38d0efb23b0c21084e6c5a95033-1793727665</Permalink>
     <DetectionRatio>0/63</DetectionRatio>
   </VirusTotalResult>
 </SPSSchema>
