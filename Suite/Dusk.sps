@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>Dusk</ProgramName>
-  <Version>1.28.4</Version>
-  <ReleaseDate>2026-11-16</ReleaseDate>
+  <Version>1.28.8</Version>
+  <ReleaseDate>2026-11-17</ReleaseDate>
   <Category>Audio - Synthesizers</Category>
   <Description>Dusk is a filter designer VST3 by sl23 for the Dead Channel Audio plugin suite.</Description>
   <License>Free for personal use</License>
@@ -24,7 +24,7 @@
   <SPSLicense>CC Attribution-NoDerivatives 4.0 International</SPSLicense>
   <SPSProgramReport>https://www.kvraudio.com/forum/viewtopic.php?t=635327</SPSProgramReport>
   <VirusTotalResult>
-    <Permalink>https://www.virustotal.com/gui/file/1826b3046dc675fb147439da455ee2029c04621e14b9e3eec9815fd800ab4375/detection/f-1826b3046dc675fb147439da455ee2029c04621e14b9e3eec9815fd800ab4375-1794851811</Permalink>
-    <DetectionRatio>0/61</DetectionRatio>
+    <Permalink>https://www.virustotal.com/gui/file/fcda554dab3b07e47a1a407471a045f9051e4bbb8f77c0433633655758d71999/detection/f-fcda554dab3b07e47a1a407471a045f9051e4bbb8f77c0433633655758d71999-1794918199</Permalink>
+    <DetectionRatio>0/63</DetectionRatio>
   </VirusTotalResult>
 </SPSSchema>
