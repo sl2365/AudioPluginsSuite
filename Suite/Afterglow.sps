@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>Afterglow</ProgramName>
-  <Version>1.89.0</Version>
-  <ReleaseDate>2026-11-16</ReleaseDate>
+  <Version>1.90.0</Version>
+  <ReleaseDate>2026-11-18</ReleaseDate>
   <Category>Audio - Synthesizers</Category>
   <Description>Afterglow is a stereo VST3 delay by sl23 for the Dead Channel Audio plugin suite.</Description>
   <License>Free for personal use</License>
@@ -18,13 +18,13 @@
   <CleanUpdate>false</CleanUpdate>
   <BuiltInUpdater>false</BuiltInUpdater>
   <DownloadUrl>https://github.com/sl2365/Afterglow/releases/latest/download/Afterglow.rar</DownloadUrl>
-  <DownloadSizeKb>3353</DownloadSizeKb>
+  <DownloadSizeKb>3360</DownloadSizeKb>
   <ProgramIconBase64>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAOvAAADrwBlbxySQAAAnxJREFUOE99k9tLk2Ecx58LL4uCoIugiyAoKBIvBoXFwGBgIBkUXQRCB+kiiFrQTUFGEEUgFcEoNdxrh22vbnPWtrLWSDc3X3XObe/rDu6UbrkDw0N3g288j++7hpV/wIfv4ff9EUIImer81SBcWdP6L66K3o5KdexCCe7zBXw9m8do+yKcbVl8bE3BpklULS0xkVdLtwzN4QbKyvC63X9pFd6OCraAYWmJYVAtwdAcxrujc/YBVaCBMGUZDulWkHatQ3hUZPBsbxGSrYyIpYiwtYBpLgfjCQZjQBWAvknQEtk2PJfLSDrXmHKIKyHrXcXk8zyGNQmYT0bBq0U4bsYwZ80xuL9JQN8Rn0iUzOKbFXhuL+Nz+yIipjISXyoY1sSZ7SD/E/YbMbw9FoT76QLsdyIUxqtD3ipRMsdtK3LmDCRrCWFzoZY5OJhH0JIDp5qBXiVAMKUpDN3BMRClsKitAkdbhhVGM4eGlsGrJRiPhxHglzAz+IPZ7m30YdKUYvCL/W4Qpe25gRJc17OsbaFnCWl/RWkb8e9FTPQn0dfoA3d6EuP6GIOf7XOBKKdynEsj6iyzwqjtkc75WtvWayGW+eVhD4ShFHpPjTO4e+8oSP2dv91NQ3IUMHJ1nhWmtE1tc2f8mDKnMNwVqMFP9jhBNo+Eb43A9zoD8VNeORVmP2QxzsXRo/mjTOHHu+0g8jzrF8aUp00Z5VTwGRdqmevhh7tGqoRuezNMlTdO5YHuwBgmDIl/wXiw0yoSXi1pN8NU2f8+Cb9xgcFeQ/xveIcV97dbtIR+lfwYNVgZyX9sy7DZfm/b0MZH0q/qbxK0dNt0nlvAVWqbKnfJ8G/KEbqf6aOcrgAAAABJRU5ErkJggg==</ProgramIconBase64>
   <SPSPublisherName>sl23</SPSPublisherName>
   <SPSLicense>CC Attribution-NoDerivatives 4.0 International</SPSLicense>
   <SPSProgramReport>https://www.kvraudio.com/forum/viewtopic.php?t=634630</SPSProgramReport>
   <VirusTotalResult>
-    <Permalink>https://www.virustotal.com/gui/file/bf1c825343e8c4733dfdbe59943974df45ddfd7514e7c7f95cdfa7c18972a354/detection/f-bf1c825343e8c4733dfdbe59943974df45ddfd7514e7c7f95cdfa7c18972a354-1794851640</Permalink>
-    <DetectionRatio>0/64</DetectionRatio>
+    <Permalink>https://www.virustotal.com/gui/file/74a86eeab53b0f7ab9f480081906ebf1ec2ffc1e8e012abda9f2a921426d98e0/detection/f-74a86eeab53b0f7ab9f480081906ebf1ec2ffc1e8e012abda9f2a921426d98e0-1795020166</Permalink>
+    <DetectionRatio>0/63</DetectionRatio>
   </VirusTotalResult>
 </SPSSchema>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>Icecream</ProgramName>
-  <Version>2.136.0</Version>
-  <ReleaseDate>2026-10-15</ReleaseDate>
+  <Version>2.137.0</Version>
+  <ReleaseDate>2026-10-18</ReleaseDate>
   <Category>Audio - Synthesizers</Category>
   <Description>Icecream64 is a modern 64-bit VST3 synthesizer for Windows, inspired by the original IceCream plugin by Cosmic Boy.
 
