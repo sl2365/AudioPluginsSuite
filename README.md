@@ -8,7 +8,7 @@
 
 </div>
 
-- **Contributors:** Please see the 'Contributing SPS files' section below for how to add your own plugins to this list.
+- **Contributors:** Please see the `Contributing SPS files` section below for how to add your own plugins to this list.
 
 A SyMenu plugin that keeps the custom **AudioPlugins** SPS suite definitions up to date from the
 [AudioPluginsSuite](https://github.com/sl2365/AudioPluginsSuite) repository.
