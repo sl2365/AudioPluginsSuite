@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>Crusher</ProgramName>
-  <Version>1.45.2</Version>
-  <ReleaseDate>2026-11-24</ReleaseDate>
+  <Version>1.46.0</Version>
+  <ReleaseDate>2026-11-26</ReleaseDate>
   <Category>Audio - Synthesizers</Category>
   <Description>Crusher is a VST3 disrtion plugin by sl23 for the Dead Channel Audio plugin suite.</Description>
   <License>Free for personal use</License>
@@ -18,13 +18,13 @@
   <CleanUpdate>false</CleanUpdate>
   <BuiltInUpdater>false</BuiltInUpdater>
   <DownloadUrl>https://github.com/sl2365/Crusher/releases/latest/download/Crusher.rar</DownloadUrl>
-  <DownloadSizeKb>3076</DownloadSizeKb>
+  <DownloadSizeKb>3089</DownloadSizeKb>
   <ProgramIconBase64>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAOvAAADrwBlbxySQAAAnxJREFUOE99k9tLk2Ecx58LL4uCoIugiyAoKBIvBoXFwGBgIBkUXQRCB+kiiFrQTUFGEEUgFcEoNdxrh22vbnPWtrLWSDc3X3XObe/rDu6UbrkDw0N3g288j++7hpV/wIfv4ff9EUIImer81SBcWdP6L66K3o5KdexCCe7zBXw9m8do+yKcbVl8bE3BpklULS0xkVdLtwzN4QbKyvC63X9pFd6OCraAYWmJYVAtwdAcxrujc/YBVaCBMGUZDulWkHatQ3hUZPBsbxGSrYyIpYiwtYBpLgfjCQZjQBWAvknQEtk2PJfLSDrXmHKIKyHrXcXk8zyGNQmYT0bBq0U4bsYwZ80xuL9JQN8Rn0iUzOKbFXhuL+Nz+yIipjISXyoY1sSZ7SD/E/YbMbw9FoT76QLsdyIUxqtD3ipRMsdtK3LmDCRrCWFzoZY5OJhH0JIDp5qBXiVAMKUpDN3BMRClsKitAkdbhhVGM4eGlsGrJRiPhxHglzAz+IPZ7m30YdKUYvCL/W4Qpe25gRJc17OsbaFnCWl/RWkb8e9FTPQn0dfoA3d6EuP6GIOf7XOBKKdynEsj6iyzwqjtkc75WtvWayGW+eVhD4ShFHpPjTO4e+8oSP2dv91NQ3IUMHJ1nhWmtE1tc2f8mDKnMNwVqMFP9jhBNo+Eb43A9zoD8VNeORVmP2QxzsXRo/mjTOHHu+0g8jzrF8aUp00Z5VTwGRdqmevhh7tGqoRuezNMlTdO5YHuwBgmDIl/wXiw0yoSXi1pN8NU2f8+Cb9xgcFeQ/xveIcV97dbtIR+lfwYNVgZyX9sy7DZfm/b0MZH0q/qbxK0dNt0nlvAVWqbKnfJ8G/KEbqf6aOcrgAAAABJRU5ErkJggg==</ProgramIconBase64>
   <SPSPublisherName>sl23</SPSPublisherName>
   <SPSLicense>CC Attribution-NoDerivatives 4.0 International</SPSLicense>
   <SPSProgramReport>https://www.kvraudio.com/forum/viewtopic.php?t=635637</SPSProgramReport>
   <VirusTotalResult>
-    <Permalink>https://www.virustotal.com/gui/file/ab191c3cd21a931645f30732588ed1884e211f158ed4b76e39680a67eca9fffb/detection/f-ab191c3cd21a931645f30732588ed1884e211f158ed4b76e39680a67eca9fffb-1795546178</Permalink>
+    <Permalink>https://www.virustotal.com/gui/file/b1634f9b4c0b0aa905e6eee4ec3de7df1943f1db0e96bec7e766c9fdc89c7208/detection/f-b1634f9b4c0b0aa905e6eee4ec3de7df1943f1db0e96bec7e766c9fdc89c7208-1795785384</Permalink>
     <DetectionRatio>0/64</DetectionRatio>
   </VirusTotalResult>
 </SPSSchema>

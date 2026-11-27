@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SPSSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://spsconsortium.net/schema/SPS.xsd">
   <ProgramName>Transform</ProgramName>
-  <Version>1.43.20</Version>
+  <Version>1.43.21</Version>
   <ReleaseDate>2026-11-26</ReleaseDate>
   <Category>Audio - Processing</Category>
   <Description>Transform is a Vocal/Pitch manipulation VST3 by sl23 for the Dead Channel Audio plugin suite.
@@ -28,7 +28,7 @@ Auto-Tune, Pitch Shifter, Frequency Shifter, 4 Voice Harmony, Freeze, Vocoder, M
   <SPSLicense>CC Attribution-NoDerivatives 4.0 International</SPSLicense>
   <SPSProgramReport>https://www.kvraudio.com/forum/viewtopic.php?t=635739</SPSProgramReport>
   <VirusTotalResult>
-    <Permalink>https://www.virustotal.com/gui/file/dc52b93e66d1ae7f4f56536272185b1f6cb3ecdf147eb0fef11dc2ab83bd4969/detection/f-dc52b93e66d1ae7f4f56536272185b1f6cb3ecdf147eb0fef11dc2ab83bd4969-1795728767</Permalink>
+    <Permalink>https://www.virustotal.com/gui/file/067d1da40799f42a3b4745efb091e13831b2fcf5b2a0a6a6037315e5d1d8eaf9/detection/f-067d1da40799f42a3b4745efb091e13831b2fcf5b2a0a6a6037315e5d1d8eaf9-1795730673</Permalink>
     <DetectionRatio>0/64</DetectionRatio>
   </VirusTotalResult>
 </SPSSchema>
